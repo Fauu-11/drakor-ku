@@ -21,19 +21,6 @@ php -S localhost:8080
 
 Buka `http://localhost:8080`.
 
-## Login admin
-
-1. Di homepage, klik cepat logo **K STREAM** sebanyak 5x.
-2. Halaman Cloud Console akan terbuka.
-3. Masuk dengan:
-
-```text
-Username: admin
-Password: 110301
-```
-
-Logout akan mengunci kembali panel, sehingga akses berikutnya harus melalui 5 klik logo.
-
 ## Konfigurasi Supabase
 
 URL dan publishable/anon key berada di:
