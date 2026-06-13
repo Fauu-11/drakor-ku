@@ -448,7 +448,7 @@
         const drama = heroFeatured[idx]; if (!drama) return;
         document.getElementById('hero-title').textContent = drama.title;
         document.getElementById('hero-meta').textContent = `${drama.genre || 'K-Drama'} • ${drama.year || '2026'} • ⭐ ${getUserRatingLabel(drama)}`;
-        document.getElementById('hero-synopsis').textContent = drama.synopsis || 'Visual Pilihan Premium Sinematik.';
+        document.getElementById('hero-synopsis').textContent = shortenSynopsis(drama.synopsis, 3);
     }
 
     function goHeroSlide(idx) {
@@ -585,8 +585,7 @@
         document.getElementById('modal-rating').innerText = getUserRatingLabel(drama);
         document.getElementById('modal-year').innerText = drama.year || '2026';
         document.getElementById('modal-genre-display').innerText = `Genre: ${drama.genre || 'K-Drama'}`;
-        document.getElementById('modal-synopsis').innerText = drama.synopsis || 'Tidak ada deskripsi.';
-
+        document.getElementById('modal-synopsis').innerText = shortenSynopsis(drama.synopsis);
         const grid = document.getElementById('modal-episode-grid'); grid.innerHTML = '';
         drama.episodes.forEach((eps, idx) => {
             const btn = document.createElement('button'); btn.className = 'px-3 py-1.5 bg-dark-bg border border-dark-border rounded-xl text-xs text-neutral-300';
@@ -609,7 +608,7 @@
         document.getElementById('detail-rating').textContent = getUserRatingLabel(drama);
         document.getElementById('detail-year').textContent = drama.year || '2026';
         document.getElementById('detail-genre').textContent = `Genre: ${drama.genre || 'K-Drama'}`;
-        document.getElementById('detail-synopsis').textContent = drama.synopsis || 'Tidak ada deskripsi.';
+       document.getElementById('detail-synopsis').textContent = shortenSynopsis(drama.synopsis);
         document.getElementById('detail-total-eps').textContent = `${drama.episodes.length} Episode`;
 
         const progList = document.getElementById('detail-progress-list'); progList.innerHTML = '';
@@ -698,6 +697,21 @@
                 .catch(error => console.error('Service worker gagal didaftarkan:', error));
         });
     }
+    function shortenSynopsis(text, maxSentences = 3) {
+    const cleanText = String(text || '').trim();
+
+    if (!cleanText) return 'Tidak ada deskripsi.';
+
+    // Pecah berdasarkan tanda titik, tanda tanya, atau tanda seru
+    const sentences = cleanText.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
+
+    // Kalau sinopsis memang sudah pendek, tampilkan apa adanya
+    if (!sentences || sentences.length <= maxSentences) {
+        return cleanText;
+    }
+
+    return sentences.slice(0, maxSentences).join(' ').trim() + ' ........';
+}
 </script>
 </body>
 </html>
