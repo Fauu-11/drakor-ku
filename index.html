@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="K-STREAM adalah platform OTT premium untuk menonton drama, film, dan serial dengan antarmuka sinematik, update real-time, dan tanpa iklan.">
+    <title>K-STREAM — Premium OTT Streaming Platform</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#020205">
+    <link rel="dns-prefetch" href="//cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://rycwiryndaudzebxzulw.supabase.co">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { DEFAULT: '#ff2a74', hover: '#e11d62', glow: 'rgba(255, 42, 116, 0.4)' },
+                        dark: { bg: '#020205', surface: '#0d0d14', border: '#1f1f2e', muted: '#64748b' }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <style>
+        body { background-color: #020205; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .glass-nav { background: rgba(2, 2, 5, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .premium-shadow:hover { box-shadow: 0 15px 30px rgba(255, 42, 116, 0.15); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .line-clamp-2 { display: -webkit-box; line-clamp: 2; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        /* ===== TOAST NOTIFICATION ===== */
+        #toast-container { position: fixed; bottom: 80px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        @media (min-width: 768px) { #toast-container { bottom: 24px; } }
+        .toast {
+            display: flex; align-items: center; gap: 10px;
+            background: #0d0d14; border: 1px solid #1f1f2e;
+            padding: 12px 16px; border-radius: 14px;
+            font-size: 12px; font-weight: 600; color: #f8fafc;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            animation: toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
+            pointer-events: auto; min-width: 220px; max-width: 320px;
+        }
+        .toast.hiding { animation: toastOut 0.25s ease forwards; }
+        .toast-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+        .toast-info { color: #ff2a74; }
+        @keyframes toastIn { from { opacity:0; transform: translateX(40px) scale(0.9); } to { opacity:1; transform: translateX(0) scale(1); } }
+        @keyframes toastOut { from { opacity:1; transform: translateX(0) scale(1); } to { opacity:0; transform: translateX(40px) scale(0.9); } }
+
+        /* ===== SKELETON LOADING ===== */
+        .skeleton { background: linear-gradient(90deg, #0d0d14 25%, #1f1f2e 50%, #0d0d14 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .skeleton-card { background: #0d0d14; border: 1px solid #1f1f2e; border-radius: 16px; overflow: hidden; padding: 6px; }
+        .skeleton-poster { width: 100%; aspect-ratio: 3/4; border-radius: 12px; }
+        .skeleton-line { height: 10px; margin-top: 8px; border-radius: 6px; }
+        .skeleton-line-short { width: 60%; }
+
+        /* ===== BOTTOM NAV MOBILE ===== */
+        #bottom-nav { display: none; }
+        @media (max-width: 767px) {
+            #bottom-nav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: rgba(13,13,20,0.96); backdrop-filter: blur(20px); border-top: 1px solid #1f1f2e; padding: 8px 0 max(8px, env(safe-area-inset-bottom)); justify-content: space-around; align-items: center; }
+            body { padding-bottom: 64px; }
+        }
+        .bottom-nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 16px; border-radius: 12px; font-size: 10px; font-weight: 600; color: #64748b; transition: color 0.2s; background: none; border: none; cursor: pointer; width: 33.333%; }
+        .bottom-nav-btn.active { color: #ff2a74; }
+        .bottom-nav-btn i { font-size: 18px; }
+
+        /* ===== HERO FEATURE ROTATOR ===== */
+        .hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.8s ease; }
+        .hero-slide.active { opacity: 1; }
+        .hero-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: all 0.3s; cursor: pointer; border: none; }
+        .hero-dot.active { background: #ff2a74; width: 18px; border-radius: 10px; }
+
+        /* ===== PROGRESS BAR EPISODE ===== */
+        .eps-btn-watched { position: relative; overflow: hidden; }
+        .eps-btn-watched::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: #ff2a74; border-radius: 0 0 6px 6px; }
+        .eps-progress-bar { height: 3px; background: #1f1f2e; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+        .eps-progress-fill { height: 100%; background: #ff2a74; border-radius: 2px; transition: width 0.3s; }
+
+        /* ===== DETAIL PAGE ===== */
+        #detail-page { display: none; position: fixed; inset: 0; z-index: 200; background: #020205; overflow-y: auto; }
+
+        /* ===== VISUAL REFRESH ===== */
+        :root {
+            --stroke-soft: rgba(148, 163, 184, 0.12);
+            --cyan: #22d3ee;
+        }
+        body {
+            background: linear-gradient(180deg, rgba(255,42,116,0.08) 0%, rgba(2,2,5,0) 34rem), linear-gradient(120deg, rgba(34,211,238,0.055), transparent 28rem), #020205;
+            text-rendering: optimizeLegibility;
+        }
+        body::before {
+            content: ''; position: fixed; inset: 0; pointer-events: none; z-index: -1;
+            background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 44px 44px; mask-image: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent 58%);
+        }
+        .glass-nav { background: rgba(2, 2, 5, 0.72); border-color: var(--stroke-soft); box-shadow: 0 10px 30px rgba(0,0,0,0.28); }
+        #search-input, #mobile-search-input { background: rgba(15, 16, 28, 0.82); border-color: var(--stroke-soft); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03); }
+        #search-input:focus, #mobile-search-input:focus { box-shadow: 0 0 0 4px rgba(255,42,116,0.10), inset 0 1px 0 rgba(255,255,255,0.04); }
+        #hero-banner { height: 58vh; min-height: 500px; width: 100%; max-width: 80rem; margin-left: auto; margin-right: auto; border-color: var(--stroke-soft); box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04); }
+        #hero-banner::after { content: ''; position: absolute; inset: auto 0 0; height: 120px; background: linear-gradient(to top, #020205 10%, transparent); z-index: 11; pointer-events: none; }
+        .hero-slide img { opacity: 0.42 !important; filter: saturate(1.08) contrast(1.06) brightness(0.92); }
+        #hero-title { text-shadow: 0 18px 42px rgba(0,0,0,0.72); }
+        #hero-badge { background: rgba(255,42,116,0.14); border-color: rgba(255,42,116,0.28); box-shadow: 0 0 0 1px rgba(255,255,255,0.03) inset; }
+        #hero-play-btn, #modal-play-btn, #detail-play-btn { background: linear-gradient(135deg, #ff2a74, #e11d62); box-shadow: 0 16px 34px rgba(255,42,116,0.25); }
+        #hero-play-btn:hover, #modal-play-btn:hover, #detail-play-btn:hover { transform: translateY(-1px); box-shadow: 0 20px 42px rgba(255,42,116,0.32); }
+        #hero-info-btn { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.16); backdrop-filter: blur(16px); }
+        #hero-info-btn:hover { background: rgba(255,255,255,0.16); }
+        .hero-dot { height: 7px; width: 7px; background: rgba(255,255,255,0.36); position: relative; }
+        .hero-dot::after { content: ''; position: absolute; top: -12px; right: -12px; bottom: -12px; left: -12px; }
+        .hero-dot.active { width: 28px; background: linear-gradient(90deg, #ff2a74, #22d3ee); }
+        #genre-chips-row { padding: 10px; margin-bottom: 28px; border: 1px solid var(--stroke-soft); border-radius: 18px; background: rgba(13,13,20,0.54); backdrop-filter: blur(18px); }
+        #continue-watching { background: linear-gradient(180deg, rgba(17,18,30,0.96), rgba(10,10,18,0.96)); border-color: var(--stroke-soft); box-shadow: 0 24px 70px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.035); }
+        .premium-shadow { background: linear-gradient(180deg, rgba(18,18,30,0.94), rgba(10,10,18,0.96)) !important; border: 1px solid var(--stroke-soft); box-shadow: 0 10px 30px rgba(0,0,0,0.20); }
+        .premium-shadow:hover { transform: translateY(-4px); border-color: rgba(255,42,116,0.28); box-shadow: 0 24px 48px rgba(0,0,0,0.34), 0 16px 36px rgba(255,42,116,0.10); }
+        .poster-shell { border-radius: 16px !important; border-color: rgba(255,255,255,0.10) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); position: relative;}
+        .poster-shell::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, rgba(255,255,255,0.08), transparent 24%, rgba(2,2,5,0.18)); }
+        #catalog-count { border: 1px solid var(--stroke-soft); background: rgba(13,13,20,0.64); border-radius: 999px; padding: 6px 10px; }
+        .eps-progress-fill { background: linear-gradient(90deg, #ff2a74, #22d3ee); }
+        #preview-modal { background: linear-gradient(180deg, rgba(18,18,30,0.98), rgba(8,8,15,0.98)); border-color: rgba(255,255,255,0.12); box-shadow: 0 40px 120px rgba(0,0,0,0.66); }
+        #preview-modal-overlay { background: rgba(0,0,0,0.78); }
+        #detail-page { background: linear-gradient(180deg, rgba(255,42,116,0.06), transparent 360px), #020205; }
+        #detail-progress-list > div { background: rgba(13,13,20,0.82) !important; border-color: var(--stroke-soft) !important; }
+        #bottom-nav { box-shadow: 0 -18px 42px rgba(0,0,0,0.42); }
+        .bottom-nav-btn.active { background: rgba(255,42,116,0.10); }
+
+        /* ===== MOTION ===== */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cardReveal { from { opacity: 0; transform: translateY(16px) scale(0.98); filter: blur(4px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+        @keyframes heroKenBurns { from { transform: scale(1.01) translate3d(0,0,0); } to { transform: scale(1.035) translate3d(-0.5%, -0.3%, 0); } }
+        #hero-badge, #hero-title, #hero-meta, #hero-synopsis, #hero-banner .flex.items-center.gap-3, #hero-dots { animation: fadeUp 0.7s ease both; }
+        .hero-slide.active img { animation: heroKenBurns 9s ease-out forwards; will-change: transform; }
+        .premium-shadow { animation: cardReveal 0.48s ease both; will-change: transform, opacity; }
+        .poster-shell img { transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease; }
+        .premium-shadow:hover .poster-shell img { transform: scale(1.075); filter: saturate(1.12) contrast(1.04); }
+        #preview-modal:not(.hidden) { animation: modalIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+        @media (max-width: 767px) {
+            #hero-banner { height: 48vh; min-height: 420px; max-width: none; }
+            .premium-shadow:hover { transform: none; }
+            .poster-actions { opacity: 1; transform: none; pointer-events: auto; }
+            .poster-action-btn { height: 32px; min-width: 32px; font-size: 10px; }
+            .hero-slide.active img, #hero-play-btn, #modal-play-btn, #detail-play-btn { animation: none; }
+            .premium-shadow { animation: none; content-visibility: auto; contain-intrinsic-size: 260px 420px; }
+        }
+    </style>
+</head>
+<body class="antialiased pt-20" id="app-body">
+
+<div id="toast-container"></div>
+
+<nav id="bottom-nav">
+    <button class="bottom-nav-btn active" id="bnav-home" onclick="bottomNavSwitch('home')">
+        <i class="fa-solid fa-house"></i>Home
+    </button>
+    <button class="bottom-nav-btn" id="bnav-search" onclick="bottomNavSwitch('search')">
+        <i class="fa-solid fa-magnifying-glass"></i>Cari
+    </button>
+    <button class="bottom-nav-btn" id="bnav-watchlist" onclick="bottomNavSwitch('watchlist')">
+        <i class="fa-solid fa-bookmark"></i>Watchlist
+    </button>
+</nav>
+
+<nav class="glass-nav fixed top-0 w-full z-50 border-b border-dark-border py-4" id="main-navbar">
+    <div class="max-w-7xl mx-auto px-4 md:px-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center justify-between w-full md:w-auto">
+            <a href="#" onclick="handleAdminEasterEgg(event)" class="text-xl md:text-2xl font-black tracking-wider text-white flex items-center gap-2">
+                <span class="text-brand"><i class="fa-solid fa-play mr-1"></i>K</span>STREAM
+            </a>
+            <div class="flex items-center gap-3 md:hidden">
+                <button onclick="toggleMobileSearch()" class="text-dark-muted hover:text-white p-2 text-lg">
+                    <i class="fa-solid fa-magnifying-glass" id="search-icon-mobile"></i>
+                </button>
+            </div>
+        </div>
+        <div id="search-wrapper" class="relative flex-1 max-w-md w-full hidden md:block">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-dark-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <input type="text" id="search-input" oninput="liveSearch()" placeholder="Cari judul drama, film..." class="w-full bg-dark-surface border border-dark-border rounded-full py-2.5 pl-11 pr-4 text-sm text-white focus:outline-none focus:border-brand transition-all">
+        </div>
+    </div>
+</nav>
+
+<section class="relative h-[45vh] md:h-[62vh] flex items-end overflow-hidden border-b border-dark-border" id="hero-banner">
+    <div class="absolute inset-0 z-0" id="hero-slides-container">
+        <div class="absolute inset-0 bg-gradient-to-r from-dark-bg via-dark-bg/70 to-transparent z-10"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-dark-bg via-transparent to-transparent z-10"></div>
+    </div>
+    <div class="relative z-20 max-w-7xl mx-auto px-4 md:px-6 w-full pb-8 md:pb-12">
+        <span id="hero-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold bg-brand/10 text-brand border border-brand/20 uppercase mb-3">
+            <i class="fa-solid fa-fire text-[8px] animate-pulse"></i> Featured
+        </span>
+        <h1 id="hero-title" class="text-2xl md:text-5xl font-extrabold tracking-tight max-w-2xl mb-1 text-white leading-tight">Hiburan Sinematik Terbaik</h1>
+        <p id="hero-meta" class="text-xs text-dark-muted mb-4 font-medium"></p>
+        <p id="hero-synopsis" class="hidden md:block text-sm text-neutral-300 leading-relaxed max-w-2xl mb-5 line-clamp-2"></p>
+        <div class="flex items-center gap-3">
+            <button id="hero-play-btn" onclick="heroPlay()" class="inline-flex items-center gap-2 bg-brand hover:bg-brand-hover text-white text-xs md:text-sm font-semibold px-5 py-3 rounded-xl transition-all shadow-lg">
+                <i class="fa-solid fa-play"></i> Putar Sekarang
+            </button>
+            <button id="hero-info-btn" onclick="heroInfo()" class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs md:text-sm font-semibold px-5 py-3 rounded-xl transition-all border border-white/10">
+                <i class="fa-solid fa-circle-info"></i> Detail
+            </button>
+        </div>
+        <div class="flex items-center gap-2 mt-4" id="hero-dots"></div>
+    </div>
+</section>
+
+<main class="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12" id="main-content">
+    <section class="mb-8 overflow-x-auto pb-2 flex gap-2.5 no-scrollbar snap-x snap-mandatory" id="genre-chips-row"></section>
+
+    <section id="continue-watching" class="hidden bg-dark-surface border border-dark-border p-4 md:p-5 rounded-2xl mb-8 items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center text-brand shrink-0"><i class="fa-solid fa-clock-rotate-left text-sm"></i></div>
+            <div class="min-w-0">
+                <span class="text-[9px] font-bold tracking-widest text-brand uppercase block">Lanjutkan Menonton</span>
+                <h4 id="continue-text" class="text-xs md:text-sm font-semibold text-white mt-0.5 truncate">Drama Title — Episode</h4>
+                <div class="eps-progress-bar w-48 mt-1"><div class="eps-progress-fill" id="continue-progress" style="width:0%"></div></div>
+            </div>
+        </div>
+        <button id="continue-btn" class="w-full sm:w-auto bg-white hover:bg-neutral-200 text-black font-bold text-xs px-4 py-2 rounded-xl transition-all">Putar Sekarang</button>
+    </section>
+
+    <section id="watchlist-section" class="hidden mb-10">
+        <div class="flex items-center gap-2 mb-4">
+            <span class="w-1 h-4 bg-yellow-500 rounded-full"></span>
+            <h2 class="text-base md:text-xl font-bold tracking-tight text-white">Watchlist Saya (<span id="watchlist-count">0</span>)</h2>
+        </div>
+        <div id="watchlist-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"></div>
+    </section>
+
+    <section id="catalog">
+        <div class="flex items-center justify-between gap-2 mb-4">
+            <div class="flex items-center gap-2">
+                <span class="w-1 h-4 bg-brand rounded-full"></span>
+                <h2 class="text-base md:text-xl font-bold tracking-tight text-white" id="catalog-title">Koleksi Tayangan Terkini</h2>
+            </div>
+            <span id="catalog-count" class="text-xs text-dark-muted font-medium"></span>
+        </div>
+        <div id="drakor-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"></div>
+    </section>
+</main>
+
+<div id="mobile-search-panel" class="hidden fixed inset-0 z-[150] bg-dark-bg/98 backdrop-blur-xl p-4 pt-20">
+    <div class="relative mb-4">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-dark-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <input type="text" id="mobile-search-input" oninput="mobileLiveSearch()" placeholder="Cari drama, genre..." class="w-full bg-dark-surface border border-dark-border rounded-2xl py-3 pl-11 pr-10 text-sm text-white focus:outline-none focus:border-brand transition-all">
+        <button onclick="bottomNavSwitch('home')" class="absolute inset-y-0 right-3 flex items-center text-dark-muted"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="mobile-search-empty" class="space-y-5"></div>
+    <div id="mobile-search-results" class="grid grid-cols-2 gap-4 overflow-y-auto" style="max-height: calc(100vh - 120px);"></div>
+</div>
+
+<div id="detail-page">
+    <div class="max-w-4xl mx-auto">
+        <div class="relative h-56 md:h-80 bg-neutral-900">
+            <div class="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/30 to-transparent z-10"></div>
+            <img id="detail-banner" src="" class="w-full h-full object-cover opacity-50 object-top" alt="Banner" loading="lazy">
+            <button onclick="closeDetailPage()" class="absolute top-4 left-4 w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white text-sm z-20"><i class="fa-solid fa-arrow-left"></i></button>
+        </div>
+        <div class="px-4 md:px-8 -mt-12 relative z-20 pb-24">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+                <span class="bg-brand/10 text-brand text-[9px] font-bold px-1.5 py-0.5 rounded border border-brand/20">Ultra HD</span>
+                <span class="text-yellow-500 text-xs font-bold"><i class="fa-solid fa-star mr-0.5"></i><span id="detail-rating">0.0</span></span>
+                <span class="text-dark-muted text-xs">• <span id="detail-year">2026</span></span>
+                <span class="text-[10px] text-neutral-300 font-semibold bg-dark-border px-1.5 py-0.5 rounded" id="detail-total-eps">0 Eps</span>
+            </div>
+            <h2 id="detail-title" class="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-1"></h2>
+            <p id="detail-genre" class="text-[11px] text-brand font-bold mb-3"></p>
+            <p id="detail-synopsis" class="text-dark-muted text-sm leading-relaxed mb-6 max-w-2xl"></p>
+            <div class="mb-6">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-3"><i class="fa-solid fa-list-ol text-brand mr-1"></i> Progress Episode</h4>
+                <div id="detail-progress-list" class="space-y-2"></div>
+            </div>
+            <div class="flex gap-3" id="detail-actions">
+                <button id="detail-play-btn" class="flex-1 md:flex-none bg-brand text-white font-bold text-sm px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 justify-center">
+                    <i class="fa-solid fa-play"></i> Putar Episode 1
+                </button>
+                <button id="detail-watchlist-btn" onclick="toggleDetailWatchlist()" class="flex items-center gap-2 bg-dark-surface border border-dark-border text-white font-semibold text-sm px-5 py-3 rounded-xl">
+                    <i id="detail-wl-icon" class="fa-regular fa-bookmark"></i> Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="preview-modal-overlay" onclick="closePreviewModal()" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm z-[100]"></div>
+<div id="preview-modal" class="hidden fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] md:w-[90%] max-w-2xl bg-dark-surface border border-dark-border rounded-2xl md:rounded-3xl z-[101] overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="relative h-40 sm:h-48 md:h-64 bg-neutral-900">
+        <div class="absolute inset-0 bg-gradient-to-t from-dark-surface via-dark-surface/30 to-transparent z-10"></div>
+        <img id="modal-banner" src="" class="w-full h-full object-cover opacity-60 object-top" alt="Banner">
+        <button onclick="closePreviewModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white text-sm z-20"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="p-4 md:p-8 -mt-8 sm:-mt-10 relative z-20">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="bg-brand/10 text-brand text-[9px] font-bold px-1.5 py-0.5 rounded border border-brand/20">Ultra HD</span>
+            <span class="text-yellow-500 text-xs font-bold"><i class="fa-solid fa-star mr-0.5"></i><span id="modal-rating">0.0</span></span>
+            <span class="text-dark-muted text-xs">• <span id="modal-year">2026</span> •</span>
+            <span class="text-[10px] text-neutral-300 font-semibold bg-dark-border px-1.5 py-0.5 rounded" id="modal-total-episodes">0 Bagian</span>
+        </div>
+        <h3 id="modal-title" class="text-xl md:text-3xl font-extrabold text-white tracking-tight mb-1.5"></h3>
+        <p id="modal-genre-display" class="text-[11px] text-brand font-bold mb-2.5"></p>
+        <p id="modal-synopsis" class="text-dark-muted text-xs md:text-sm leading-relaxed mb-5 max-h-20 overflow-y-auto"></p>
+        <div class="flex gap-2 mb-4">
+            <button id="modal-play-btn" onclick="playFromModal()" class="flex-1 text-xs font-bold bg-brand text-white py-2.5 px-4 rounded-xl"><i class="fa-solid fa-play mr-1"></i> Putar</button>
+            <button id="modal-detail-btn" onclick="openDetailFromModal()" class="flex-1 text-xs font-semibold bg-brand/10 border border-brand/20 text-brand py-2.5 px-4 rounded-xl"><i class="fa-solid fa-circle-info mr-1"></i> Detail Lengkap</button>
+        </div>
+        <div class="border-t border-dark-border pt-4">
+            <h4 class="text-[10px] md:text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2.5"><i class="fa-solid fa-list-ol text-brand mr-1"></i> Pilih Episode</h4>
+            <div id="modal-episode-grid" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/config.js"></script>
+<script>
+    const SUPABASE_URL = window.KSTREAM_CONFIG.supabaseUrl;
+    const SUPABASE_KEY = window.KSTREAM_CONFIG.supabaseAnonKey;
+    const PLAYER_URL = './player.html';
+    const ADMIN_URL = './admin.html';
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let drakorDB = [];
+    let watchlist = JSON.parse(localStorage.getItem('kstream_watchlist')) || [];
+    let episodeProgress = JSON.parse(localStorage.getItem('kstream_progress')) || {};
+    let currentGenreFilter = "All";
+    let heroFeatured = [];
+    let heroCurrentIdx = 0;
+    let heroInterval = null;
+    let currentModalDramaId = null;
+    let currentDetailDramaId = null;
+
+    const gridContainer = document.getElementById('drakor-container');
+    const DEFAULT_POSTER = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=400&fit=crop";
+    const GENRE_OPTIONS = [
+        { value: 'All', label: 'Semua' },
+        { value: 'Drama', label: 'Drama' },
+        { value: 'Movie', label: 'Film' },
+        { value: 'Series', label: 'Serial' },
+        { value: 'Romance', label: 'Romance' },
+        { value: 'Action', label: 'Action' },
+        { value: 'Thriller', label: 'Thriller' },
+        { value: 'Comedy', label: 'Comedy' },
+        { value: 'Fantasy', label: 'Fantasy' },
+        { value: 'Mystery', label: 'Mystery' },
+        { value: 'Crime', label: 'Crime' },
+        { value: 'Horror', label: 'Horror' },
+        { value: 'Historical', label: 'Historical' },
+        { value: 'Medical', label: 'Medical' },
+        { value: 'School', label: 'School' },
+        { value: 'Family', label: 'Family' },
+        { value: 'Slice of Life', label: 'Slice of Life' },
+        { value: 'Sci-Fi', label: 'Sci-Fi' },
+        { value: 'Supernatural', label: 'Supernatural' },
+        { value: 'Legal', label: 'Legal' },
+        { value: 'Political', label: 'Political' },
+        { value: 'Youth', label: 'Youth' },
+        { value: 'Melodrama', label: 'Melodrama' }
+    ];
+
+    // ===== SECRET EASTER EGG (5x KLIK LOGO K-STREAM) =====
+    let logoClicks = 0;
+    let logoClickTimeout;
+    function handleAdminEasterEgg(event) {
+        event.preventDefault();
+        logoClicks++;
+        if (logoClicks < 5) bottomNavSwitch('home');
+        
+        clearTimeout(logoClickTimeout);
+        logoClickTimeout = setTimeout(() => { logoClicks = 0; }, 2500);
+
+        if (logoClicks === 5) {
+            logoClicks = 0;
+            showToast('Mengakses Owner Portal...', 'info', 1000);
+            setTimeout(() => { window.location.href = ADMIN_URL; }, 1000);
+        }
+    }
+
+    // ===== NAVIGASI KE DEDICATED PLAYER PAGE =====
+    function triggerPlayer(id, epsIdx) {
+        window.location.href = `${PLAYER_URL}?id=${encodeURIComponent(id)}&eps=${epsIdx}`;
+    }
+
+    function runWhenIdle(callback) {
+        if ('requestIdleCallback' in window) requestIdleCallback(callback, { timeout: 1200 });
+        else setTimeout(callback, 200);
+    }
+
+    function renderGenreChips() {
+        const row = document.getElementById('genre-chips-row'); if (!row) return;
+        const fragment = document.createDocumentFragment();
+        GENRE_OPTIONS.forEach(({ value, label }) => {
+            const chip = document.createElement('button');
+            chip.textContent = label;
+            chip.className = value === currentGenreFilter ? 'genre-chip px-4 py-2 bg-brand text-white text-xs font-bold rounded-full border border-brand transition-all shrink-0 snap-start' : 'genre-chip px-4 py-2 bg-dark-surface text-neutral-400 text-xs font-semibold rounded-full border border-dark-border hover:border-brand/40 hover:text-white transition-all shrink-0 snap-start';
+            chip.onclick = () => filterGenre(value);
+            fragment.appendChild(chip);
+        });
+        row.innerHTML = ''; row.appendChild(fragment);
+    }
+
+    function showToast(message, type = 'info', duration = 3000) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div'); toast.className = `toast toast-${type}`;
+        toast.innerHTML = `<span>${message}</span>`; container.appendChild(toast);
+        setTimeout(() => { toast.remove(); }, duration);
+    }
+
+    function showSkeletons(count = 10) {
+        gridContainer.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const s = document.createElement('div'); s.className = 'skeleton-card';
+            s.innerHTML = `<div class="skeleton skeleton-poster"></div><div class="skeleton skeleton-line" style="width:80%"></div><div class="skeleton skeleton-line skeleton-line-short"></div>`;
+            gridContainer.appendChild(s);
+        }
+    }
+
+    function setupHero(data) {
+        if (!data || data.length === 0) return;
+        heroFeatured = data.slice(0, 5);
+        const container = document.getElementById('hero-slides-container');
+        heroFeatured.forEach((drama, i) => {
+            const slide = document.createElement('div'); slide.className = 'hero-slide' + (i === 0 ? ' active' : '');
+            slide.innerHTML = `<img src="${drama.image || DEFAULT_POSTER}" class="w-full h-full object-cover opacity-30">`;
+            container.appendChild(slide);
+        });
+        updateHeroContent(0);
+        const dotsEl = document.getElementById('hero-dots'); dotsEl.innerHTML = '';
+        heroFeatured.forEach((_, i) => {
+            const dot = document.createElement('button'); dot.className = 'hero-dot' + (i === 0 ? ' active' : '');
+            dot.onclick = () => goHeroSlide(i); dotsEl.appendChild(dot);
+        });
+        if (heroInterval) clearInterval(heroInterval);
+        heroInterval = setInterval(() => goHeroSlide((heroCurrentIdx + 1) % heroFeatured.length), 5000);
+    }
+
+    function updateHeroContent(idx) {
+        const drama = heroFeatured[idx]; if (!drama) return;
+        document.getElementById('hero-title').textContent = drama.title;
+        document.getElementById('hero-meta').textContent = `${drama.genre || 'K-Drama'} • ${drama.year || '2026'} • ⭐ ${getUserRatingLabel(drama)}`;
+        document.getElementById('hero-synopsis').textContent = drama.synopsis || 'Visual Pilihan Premium Sinematik.';
+    }
+
+    function goHeroSlide(idx) {
+        const slides = document.querySelectorAll('.hero-slide');
+        const dots = document.querySelectorAll('.hero-dot');
+        slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+        heroCurrentIdx = idx; updateHeroContent(idx);
+    }
+
+    function heroPlay() {
+        const drama = heroFeatured[heroCurrentIdx]; if (drama && drama.episodes.length > 0) triggerPlayer(drama.id, 0);
+    }
+    function heroInfo() { const drama = heroFeatured[heroCurrentIdx]; if (drama) openDetailPage(drama.id); }
+
+    function bottomNavSwitch(view) {
+        ['home','search','watchlist'].forEach(v => {
+            const btn = document.getElementById('bnav-' + v); if (btn) btn.classList.toggle('active', v === view);
+        });
+        const mainContent = document.getElementById('main-content');
+        const heroSection = document.getElementById('hero-banner');
+        const mobileSearch = document.getElementById('mobile-search-panel');
+        const watchlistSec = document.getElementById('watchlist-section');
+
+        if (view === 'home') {
+            mainContent.style.display = ''; heroSection.style.display = ''; mobileSearch.classList.add('hidden'); displayCatalog();
+            if (watchlistSec) watchlistSec.style.display = 'none';
+        } else if (view === 'search') {
+            mobileSearch.classList.remove('hidden'); renderMobileSearchSuggestions();
+            setTimeout(() => document.getElementById('mobile-search-input').focus(), 100);
+        } else if (view === 'watchlist') {
+            mobileSearch.classList.add('hidden'); mainContent.style.display = ''; heroSection.style.display = 'none'; displayWatchlist();
+            document.getElementById('catalog').style.display = 'none'; if (watchlistSec) watchlistSec.style.display = 'block';
+        }
+    }
+
+    function toggleMobileSearch() { bottomNavSwitch('search'); }
+    function getSearchText(drama) { return [drama.title, drama.genre, drama.year, drama.synopsis].filter(Boolean).join(' ').toLowerCase(); }
+
+    function getUserRatingLabel(drama) {
+        const average = Number(drama._userRatingAverage || 0);
+        return average > 0 ? average.toFixed(1) : 'Baru';
+    }
+
+    function getNextPlayableIndex(drama) {
+        if (!drama || !drama.episodes || drama.episodes.length === 0) return 0;
+        const nextIdx = drama.episodes.findIndex((_, idx) => !(episodeProgress[drama.id] && episodeProgress[drama.id][idx]));
+        return nextIdx >= 0 ? nextIdx : 0;
+    }
+
+    function buildCardHtml(drama) {
+        const isFav = watchlist.includes(drama.title);
+        const favIcon = isFav ? 'fa-solid fa-heart text-brand' : 'fa-regular fa-heart text-neutral-400';
+        const epsLength = drama.episodes ? drama.episodes.length : 0;
+        const watched = episodeProgress[drama.id] ? Object.keys(episodeProgress[drama.id]).length : 0;
+        const progressPct = epsLength > 0 ? Math.round((watched / epsLength) * 100) : 0;
+        const playIdx = getNextPlayableIndex(drama);
+
+        return `
+            <div class="poster-shell w-full aspect-[3/4] overflow-hidden bg-neutral-900 rounded-xl group">
+                <img src="${drama.image || DEFAULT_POSTER}" class="w-full h-full object-cover cursor-pointer" onclick="openPreviewModal('${drama.id}')">
+                <div class="poster-actions">
+                    <button onclick="event.stopPropagation(); triggerPlayer('${drama.id}', ${playIdx})" class="poster-action-btn primary"><i class="fa-solid fa-play"></i> Putar</button>
+                    <button onclick="event.stopPropagation(); openDetailPage('${drama.id}')" class="poster-action-btn"><i class="fa-solid fa-circle-info"></i></button>
+                </div>
+                <button onclick="toggleWatchlist(event, '${drama.title.replace(/'/g, "\\'")}')" class="absolute top-2.5 right-2.5 w-8 h-8 rounded-xl bg-dark-bg/80 border border-dark-border flex items-center justify-center text-xs z-30">
+                    <i class="${favIcon}"></i>
+                </button>
+                <span class="absolute bottom-2.5 left-2.5 bg-dark-bg/80 border text-[10px] font-bold text-brand px-2 py-1 rounded z-10">${epsLength} Eps</span>
+                <span class="absolute top-2.5 left-2.5 bg-dark-bg/80 border text-[10px] font-bold text-yellow-500 px-2 py-1 rounded z-10">⭐${getUserRatingLabel(drama)}</span>
+            </div>
+            <div class="p-2">
+                <h3 class="text-xs md:text-sm font-semibold truncate text-white" onclick="openPreviewModal('${drama.id}')">${drama.title}</h3>
+                <div class="flex items-center justify-between mt-0.5 text-[10px] text-dark-muted">
+                    <span class="truncate">${drama.genre || 'K-Drama'}</span>
+                    <span>${drama.year || '2026'}</span>
+                </div>
+                <div class="eps-progress-bar mt-1"><div class="eps-progress-fill" style="width:${progressPct}%"></div></div>
+            </div>`;
+    }
+
+    function renderCards(target, items, wrapperClass) {
+        target.innerHTML = ''; const fragment = document.createDocumentFragment();
+        items.forEach(drama => {
+            const card = document.createElement('div'); card.className = wrapperClass;
+            card.innerHTML = buildCardHtml(drama); fragment.appendChild(card);
+        });
+        target.appendChild(fragment);
+    }
+
+    function displayCatalog() {
+        document.getElementById('catalog').style.display = '';
+        let filtered = drakorDB;
+        if (currentGenreFilter !== "All") filtered = drakorDB.filter(d => d.genre && d.genre.includes(currentGenreFilter));
+        document.getElementById('catalog-count').textContent = filtered.length + ' judul';
+        renderCards(gridContainer, filtered, 'bg-dark-surface p-1.5 md:p-2 rounded-xl transition-all premium-shadow');
+    }
+
+    function filterGenre(genre) { currentGenreFilter = genre; displayCatalog(); renderGenreChips(); }
+    function liveSearch() {
+        const q = document.getElementById('search-input').value.toLowerCase();
+        const filtered = drakorDB.filter(d => getSearchText(d).includes(q));
+        renderCards(gridContainer, filtered, 'bg-dark-surface p-1.5 md:p-2 rounded-xl transition-all premium-shadow');
+    }
+
+    function renderMobileSearchSuggestions() {
+        document.getElementById('mobile-search-empty').innerHTML = `<div class="p-4 text-center text-xs text-dark-muted">Ketik kata kunci untuk memulai pencarian.</div>`;
+    }
+    function mobileLiveSearch() {
+        const q = document.getElementById('mobile-search-input').value.toLowerCase();
+        const filtered = drakorDB.filter(d => getSearchText(d).includes(q));
+        renderCards(document.getElementById('mobile-search-results'), filtered, 'bg-dark-surface p-1.5 rounded-xl premium-shadow');
+    }
+
+    function displayWatchlist() {
+        const filteredWl = drakorDB.filter(d => watchlist.includes(d.title));
+        document.getElementById('watchlist-count').innerText = filteredWl.length;
+        renderCards(document.getElementById('watchlist-container'), filteredWl, 'bg-dark-surface p-1.5 md:p-2 rounded-xl premium-shadow');
+    }
+
+    function toggleWatchlist(event, title) {
+        event.stopPropagation(); const idx = watchlist.indexOf(title);
+        if (idx > -1) { watchlist.splice(idx, 1); showToast('Dihapus dari Watchlist', 'warning'); }
+        else { watchlist.push(title); showToast('Ditambahkan ke Watchlist', 'success'); }
+        localStorage.setItem('kstream_watchlist', JSON.stringify(watchlist)); displayCatalog(); displayWatchlist();
+    }
+
+    function openPreviewModal(id) {
+        const drama = drakorDB.find(d => d.id == id); if (!drama) return;
+        currentModalDramaId = id;
+        document.getElementById('modal-title').innerText = drama.title;
+        document.getElementById('modal-banner').src = drama.image;
+        document.getElementById('modal-total-episodes').innerText = `${drama.episodes.length} Bagian`;
+        document.getElementById('modal-rating').innerText = getUserRatingLabel(drama);
+        document.getElementById('modal-year').innerText = drama.year || '2026';
+        document.getElementById('modal-genre-display').innerText = `Genre: ${drama.genre || 'K-Drama'}`;
+        document.getElementById('modal-synopsis').innerText = drama.synopsis || 'Tidak ada deskripsi.';
+
+        const grid = document.getElementById('modal-episode-grid'); grid.innerHTML = '';
+        drama.episodes.forEach((eps, idx) => {
+            const btn = document.createElement('button'); btn.className = 'px-3 py-1.5 bg-dark-bg border border-dark-border rounded-xl text-xs text-neutral-300';
+            btn.textContent = eps.epsName; btn.onclick = () => { closePreviewModal(); triggerPlayer(drama.id, idx); };
+            grid.appendChild(btn);
+        });
+        document.getElementById('preview-modal-overlay').classList.remove('hidden');
+        document.getElementById('preview-modal').classList.remove('hidden');
+    }
+
+    function playFromModal() { if (currentModalDramaId) triggerPlayer(currentModalDramaId, 0); }
+    function openDetailFromModal() { if (currentModalDramaId) { closePreviewModal(); openDetailPage(currentModalDramaId); } }
+    function closePreviewModal() { document.getElementById('preview-modal-overlay').classList.add('hidden'); document.getElementById('preview-modal').classList.add('hidden'); }
+
+    function openDetailPage(id) {
+        const drama = drakorDB.find(d => d.id == id); if (!drama) return;
+        currentDetailDramaId = id;
+        document.getElementById('detail-banner').src = drama.image || DEFAULT_POSTER;
+        document.getElementById('detail-title').textContent = drama.title;
+        document.getElementById('detail-rating').textContent = getUserRatingLabel(drama);
+        document.getElementById('detail-year').textContent = drama.year || '2026';
+        document.getElementById('detail-genre').textContent = `Genre: ${drama.genre || 'K-Drama'}`;
+        document.getElementById('detail-synopsis').textContent = drama.synopsis || 'Tidak ada deskripsi.';
+        document.getElementById('detail-total-eps').textContent = `${drama.episodes.length} Episode`;
+
+        const progList = document.getElementById('detail-progress-list'); progList.innerHTML = '';
+        drama.episodes.forEach((eps, idx) => {
+            const row = document.createElement('div'); row.className = 'flex items-center justify-between p-3 bg-dark-surface rounded-xl border border-dark-border';
+            row.innerHTML = `<span class="text-xs text-white">${eps.epsName}</span>
+                             <button class="text-xs bg-brand text-white px-3 py-1 rounded-lg" onclick="triggerPlayer('${drama.id}', ${idx})">Putar</button>`;
+            progList.appendChild(row);
+        });
+        document.getElementById('detail-page').style.display = 'block';
+    }
+    function closeDetailPage() { document.getElementById('detail-page').style.display = 'none'; }
+
+    function checkHistory() {
+        const last = JSON.parse(localStorage.getItem('lastWatched'));
+        const bar = document.getElementById('continue-watching');
+        if (last && drakorDB.some(d => d.id == last.cloudId)) {
+            bar.style.display = 'flex'; document.getElementById('continue-text').innerText = last.label;
+            document.getElementById('continue-progress').style.width = (last.progress || 0) + '%';
+            document.getElementById('continue-btn').onclick = () => triggerPlayer(last.cloudId, last.epsIdx);
+        } else { bar.style.display = 'none'; }
+    }
+
+    async function fetchRatingSummaries() {
+        const localRatings = JSON.parse(localStorage.getItem('kstream_user_ratings') || '{}');
+        const localSummary = Object.fromEntries(
+            Object.entries(localRatings).map(([id, rating]) => [String(id), { average: Number(rating), count: 1 }])
+        );
+
+        const viewResult = await _supabase
+            .from('drakor_rating_summary')
+            .select('drakor_id,average_rating,rating_count');
+
+        if (!viewResult.error) {
+            const cloudSummary = Object.fromEntries((viewResult.data || []).map(item => [
+                String(item.drakor_id),
+                { average: Number(item.average_rating || 0), count: Number(item.rating_count || 0) }
+            ]));
+            Object.entries(localSummary).forEach(([id, summary]) => {
+                if (!cloudSummary[id]) cloudSummary[id] = summary;
+            });
+            return cloudSummary;
+        }
+
+        const ratingResult = await _supabase.from('drakor_ratings').select('drakor_id,rating');
+        if (ratingResult.error) return localSummary;
+
+        return (ratingResult.data || []).reduce((summary, item) => {
+            const key = String(item.drakor_id);
+            if (!summary[key]) summary[key] = { total: 0, count: 0, average: 0 };
+            summary[key].total += Number(item.rating || 0);
+            summary[key].count += 1;
+            summary[key].average = summary[key].total / summary[key].count;
+            return summary;
+        }, {});
+    }
+
+    async function fetchCloudData() {
+        showSkeletons(10);
+        try {
+            const [{ data, error }, ratingSummary] = await Promise.all([
+                _supabase.from('drakor').select('*').order('id', { ascending: false }),
+                fetchRatingSummaries()
+            ]);
+            if (error) throw error;
+            drakorDB = (data || []).map(drama => {
+                const summary = ratingSummary[String(drama.id)] || { average: 0, count: 0 };
+                return {
+                    ...drama,
+                    _userRatingAverage: Number(summary.average || 0),
+                    _userRatingCount: Number(summary.count || 0)
+                };
+            });
+            setupHero(drakorDB); renderGenreChips(); displayCatalog(); checkHistory();
+            runWhenIdle(() => { displayWatchlist(); });
+        } catch(err) {
+            console.error(err);
+            gridContainer.innerHTML = `<div class="p-4 text-center text-red-500">Koneksi Cloud Gagal. Jalankan menggunakan Local Server!</div>`;
+        }
+    }
+    fetchCloudData();
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .catch(error => console.error('Service worker gagal didaftarkan:', error));
+        });
+    }
+</script>
+</body>
+</html>

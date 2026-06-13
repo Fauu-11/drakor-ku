@@ -1,0 +1,19 @@
+{
+  "name": "K STREAM Premium OTT",
+  "short_name": "K STREAM",
+  "description": "Katalog dan player streaming drama Korea berbasis Supabase.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#020205",
+  "theme_color": "#020205",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

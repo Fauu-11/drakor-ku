@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-STREAM — Admin Console Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { DEFAULT: '#ff2a74', hover: '#e11d62' },
+                        dark: { bg: '#06060f', surface: '#0f0f1d', border: '#1f1f35', muted: '#64748b' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #06060f; color: #f8fafc; }
+        #toast-container { position: fixed; top: 20px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast { display: flex; align-items: center; gap: 10px; background: #0f0f1d; border: 1px solid #1f1f35; padding: 12px 16px; border-radius: 14px; font-size: 12px; font-weight: 600; color: #f8fafc; box-shadow: 0 8px 24px rgba(0,0,0,0.5); animation: toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards; pointer-events: auto; min-width: 220px; max-width: 320px; }
+        .toast.hiding { animation: toastOut 0.25s ease forwards; }
+        .toast-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+        .toast-success .toast-icon { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .toast-error .toast-icon { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .toast-info .toast-icon { background: rgba(255,42,116,0.15); color: #ff2a74; }
+        .toast-warning .toast-icon { background: rgba(234,179,8,0.15); color: #eab308; }
+        @keyframes toastIn { from { opacity:0; transform: translateX(40px) scale(0.9); } to { opacity:1; transform: translateX(0) scale(1); } }
+        @keyframes toastOut { from { opacity:1; transform: translateX(0) scale(1); } to { opacity:0; transform: translateX(40px) scale(0.9); } }
+        .admin-input { width: 100%; background: #06060f; border: 1px solid #1f1f35; border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.875rem; color: #fff; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+        .admin-input:focus { border-color: #ff2a74; box-shadow: 0 0 0 3px rgba(255,42,116,0.12); }
+        .tool-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 0.75rem; border: 1px solid #1f1f35; background: #06060f; color: #cbd5e1; padding: 0.65rem 0.8rem; font-size: 0.75rem; font-weight: 700; transition: all 0.2s; }
+        .tool-btn:hover { border-color: rgba(255,42,116,0.45); color: #fff; }
+        .poster-preview { aspect-ratio: 3/4; width: 74px; border-radius: 0.85rem; object-fit: cover; border: 1px solid #1f1f35; background: #06060f; }
+        .dirty-dot { display: inline-flex; width: 8px; height: 8px; border-radius: 999px; background: #eab308; box-shadow: 0 0 0 4px rgba(234,179,8,0.1); }
+        .manager-card { border: 1px solid #1f1f35; border-radius: 1rem; background: #06060f; overflow: hidden; }
+        .empty-state { border: 1px dashed #334155; background: rgba(6,6,15,0.7); border-radius: 1.25rem; padding: 2rem 1rem; text-align: center; }
+        @media (max-width: 767px) {
+            #admin-toolbar { position: sticky; top: 73px; z-index: 30; background: rgba(15,15,29,0.94); backdrop-filter: blur(16px); }
+            .admin-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div id="toast-container"></div>
+
+<!-- SECURITY WALL SCREEN -->
+<div id="login-screen" class="fixed inset-0 bg-dark-bg z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-dark-surface border border-dark-border p-8 rounded-3xl text-center shadow-2xl relative overflow-hidden">
+        
+        <!-- 🔗 Tombol Pojok Atas: Logout Otomatis & Pindah Halaman -->
+        <button onclick="exitAndLogout()" class="absolute top-4 left-4 text-[11px] font-semibold text-dark-muted hover:text-white transition-all flex items-center gap-1 bg-[#06060f] border border-dark-border px-2.5 py-1 rounded-xl shadow-md">
+            <i class="fa-solid fa-arrow-left text-[10px]"></i> Portal Penonton
+        </button>
+
+        <div class="w-14 h-14 bg-brand/10 rounded-2xl flex items-center justify-center mx-auto text-brand text-2xl mb-4 mt-4">
+            <i class="fa-solid fa-user-shield"></i>
+        </div>
+        <h3 class="text-xl font-extrabold tracking-tight">K-Stream Cloud Console</h3>
+        <p class="text-dark-muted text-xs mt-1 mb-6">Verifikasi identitas administratif Anda.</p>
+        <div class="space-y-3 text-left">
+            <input type="text" id="admin-user" placeholder="Username" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white" onkeydown="if(event.key==='Enter')checkGateLogin()">
+            <input type="password" id="admin-pass" placeholder="Password" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white" onkeydown="if(event.key==='Enter')checkGateLogin()">
+            <div id="login-error" class="hidden text-xs text-red-400 font-medium text-center bg-red-500/10 border border-red-500/20 rounded-lg py-2">Username atau password salah.</div>
+            
+            <div class="flex flex-col gap-2 pt-2">
+                <button onclick="checkGateLogin()" id="login-btn" class="w-full bg-brand hover:bg-brand-hover text-white text-sm font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                    <span id="login-btn-text">Masuk Panel Admin</span>
+                </button>
+                
+                <!-- 🔗 Tombol UX Utama: Logout Otomatis & Pindah Halaman -->
+                <button onclick="exitAndLogout()" class="w-full text-center bg-[#06060f] hover:bg-neutral-950 border border-dark-border text-dark-muted hover:text-white text-xs font-bold py-3 rounded-xl transition-all shadow-sm">
+                    <i class="fa-solid fa-house mr-1 text-[11px]"></i> Kembali ke Beranda Utama
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN PANEL -->
+<div id="main-panel" class="hidden min-h-screen">
+    <header class="bg-dark-surface border-b border-dark-border py-4 px-6 md:px-8 flex justify-between items-center flex-wrap gap-4 sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <span class="text-brand font-black text-lg tracking-wider"><i class="fa-solid fa-cloud-bolt mr-2"></i>K-STREAM ADMIN</span>
+        </div>
+        <div class="flex items-center gap-2 md:gap-3">
+            <button onclick="runGlobalLinkChecker()" class="text-xs font-bold bg-amber-600/10 text-amber-400 border border-amber-600/20 px-3 py-2 rounded-xl hover:bg-amber-600 hover:text-white transition-all"><i class="fa-solid fa-network-wired mr-1"></i> Ping Link</button>
+            <button onclick="exitAndLogout()" class="text-xs font-semibold bg-dark-border hover:bg-neutral-800 px-3 py-2 rounded-xl transition-all"><i class="fa-solid fa-eye mr-1"></i> View Portal</button>
+            <button onclick="adminLogout()" class="text-xs font-semibold bg-red-600/10 text-red-400 border border-red-600/20 px-3 py-2 rounded-xl hover:bg-red-600 hover:text-white transition-all"><i class="fa-solid fa-right-from-bracket mr-1"></i> Logout</button>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-4 md:p-8">
+        <!-- STATS DASHBOARD -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-dark-surface p-4 md:p-5 border border-dark-border rounded-2xl">
+                <span class="text-[10px] text-dark-muted font-bold block uppercase tracking-wider">Total Judul</span>
+                <h3 id="stat-titles" class="text-2xl font-black text-white mt-1">...</h3>
+            </div>
+            <div class="bg-dark-surface p-4 md:p-5 border border-dark-border rounded-2xl">
+                <span class="text-[10px] text-dark-muted font-bold block uppercase tracking-wider">Total Episode</span>
+                <h3 id="stat-episodes" class="text-2xl font-black text-brand mt-1">...</h3>
+            </div>
+            <div class="bg-dark-surface p-4 md:p-5 border border-dark-border rounded-2xl">
+                <span class="text-[10px] text-dark-muted font-bold block uppercase tracking-wider">Link Broken</span>
+                <h3 id="stat-broken" class="text-2xl font-black text-red-400 mt-1">...</h3>
+            </div>
+            <div class="bg-dark-surface p-4 md:p-5 border border-dark-border rounded-2xl">
+                <span class="text-[10px] text-dark-muted font-bold block uppercase tracking-wider">Belum Dicek</span>
+                <h3 id="stat-unchecked" class="text-2xl font-black text-amber-400 mt-1">...</h3>
+            </div>
+        </section>
+
+        <!-- FORM INPUT -->
+        <section class="bg-dark-surface border border-dark-border rounded-3xl p-5 md:p-8 mb-8">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-dark-border">
+                <div>
+                    <h2 class="text-lg font-bold" id="form-mode-title">Injeksi Basis Data Cloud</h2>
+                    <p class="text-dark-muted text-xs mt-0.5" id="form-mode-desc">Sinkronisasi instan menggunakan klaster Supabase DB.</p>
+                    <div id="draft-indicator" class="hidden items-center gap-2 text-[11px] text-amber-400 font-bold mt-2">
+                        <span class="dirty-dot"></span> Draft lokal belum disimpan
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 admin-actions">
+                    <button id="restore-draft-btn" onclick="restoreAdminDraft()" class="hidden tool-btn" type="button"><i class="fa-solid fa-clock-rotate-left"></i> Pulihkan Draft</button>
+                    <button id="clear-draft-btn" onclick="clearAdminDraft()" class="hidden tool-btn" type="button"><i class="fa-solid fa-eraser"></i> Hapus Draft</button>
+                    <button id="cancel-edit-btn" onclick="exitEditMode()" class="hidden text-xs font-bold bg-neutral-800 border border-dark-border px-4 py-2 rounded-xl hover:bg-neutral-700 transition-all text-neutral-300" type="button">
+                        <i class="fa-solid fa-xmark mr-1"></i> Batal Edit
+                    </button>
+                </div>
+            </div>
+            <form id="upload-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="edit-cloud-id" value="">
+                <input type="hidden" id="edit-episode-idx" value="-1">
+                
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">Judul Drama / Film</label>
+                    <input type="text" id="title" required placeholder="Contoh: Vincenzo" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">Bagian / Episode</label>
+                    <input type="text" id="episode" placeholder="Contoh: Eps 01" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                    <div id="episode-warning" class="hidden text-[11px] text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"></div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">Kategori Genre</label>
+                    <input id="genre" type="text" value="Drama" placeholder="Contoh: Romance, Comedy, Drama" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">Tahun Rilis</label>
+                    <input type="number" id="year" placeholder="Contoh: 2026" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">URL Gambar Poster</label>
+                    <div class="flex gap-3">
+                        <input type="url" id="image-url" placeholder="https://domain.com/poster.jpg" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                        <img id="poster-preview" class="poster-preview hidden" alt="Preview poster">
+                    </div>
+                </div>
+                <div class="space-y-1 md:col-span-2">
+                    <label class="text-xs font-semibold text-neutral-300">Sinopsis</label>
+                    <textarea id="synopsis" rows="2" placeholder="Masukkan ringkasan alur cerita..." class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white resize-none"></textarea>
+                </div>
+                <div class="space-y-1 md:col-span-2">
+                    <label class="text-xs font-semibold text-neutral-300">Kode / URL Video</label>
+                    <input type="text" id="video-url" placeholder="Masukkan link video player" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                </div>
+                <button type="submit" id="submit-btn" class="md:col-span-2 bg-brand text-white font-bold py-3.5 rounded-xl hover:bg-brand-hover transition-all flex justify-center items-center gap-2">
+                    <span id="submit-btn-text">Suntikkan Data Ke Supabase Cloud</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- EDITOR ACCORDION -->
+        <section class="bg-dark-surface border border-dark-border rounded-3xl p-5 md:p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="text-base font-bold flex items-center gap-2"><i class="fa-solid fa-cubes text-brand"></i> Pengaturan Cluster Seri & Episode</h3>
+                    <p id="manager-result-count" class="text-[11px] text-dark-muted mt-1">Memuat data...</p>
+                </div>
+                <div class="flex items-center gap-2 admin-actions">
+                    <button onclick="expandAllAccordions()" class="tool-btn" type="button"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Buka Semua</button>
+                    <button onclick="collapseAllAccordions()" class="tool-btn" type="button"><i class="fa-solid fa-down-left-and-up-right-to-center"></i> Tutup Semua</button>
+                </div>
+            </div>
+            <div id="admin-toolbar" class="grid grid-cols-1 md:grid-cols-[1fr_180px_180px] gap-3 mb-4 p-3 border border-dark-border rounded-2xl">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-dark-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input id="manager-search" type="text" oninput="renderAdvancedManager()" placeholder="Cari judul, genre, episode, atau URL..." class="admin-input pl-10">
+                </div>
+                <select id="manager-status-filter" onchange="renderAdvancedManager()" class="admin-input">
+                    <option value="all">Semua Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Broken">Broken</option>
+                    <option value="Unchecked">Belum Dicek</option>
+                </select>
+                <select id="manager-sort" onchange="renderAdvancedManager()" class="admin-input">
+                    <option value="newest">Terbaru</option>
+                    <option value="title">Judul A-Z</option>
+                    <option value="episodes">Episode Terbanyak</option>
+                    <option value="broken">Broken Terbanyak</option>
+                </select>
+            </div>
+            <div id="advanced-editor-stack" class="space-y-4">
+                <div class="text-center py-4 text-dark-muted text-xs animate-pulse">Menghubungkan ke server Supabase...</div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="./js/config.js"></script>
+<script>
+    const AUTH_CREDENTIALS = [{ user: "admin", pass: "110301" }];
+    const SUPABASE_URL = window.KSTREAM_CONFIG.supabaseUrl;
+    const SUPABASE_KEY = window.KSTREAM_CONFIG.supabaseAnonKey;
+    const HOME_URL = './index.html';
+    let _supabase;
+    try {
+        _supabase = (window.supabase && window.supabase.createClient)
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+            : supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } catch(err) { console.error("Supabase init gagal:", err); }
+
+    let drakorDB = [];
+    const editorStack = document.getElementById('advanced-editor-stack');
+    const ADMIN_DRAFT_KEY = 'kstream_admin_form_draft';
+    const DEFAULT_POSTER = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=400&fit=crop";
+
+    function showToast(message, type = 'info', duration = 3000) {
+        const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `<div class="toast-icon"><i class="fa-solid ${icons[type] || icons.info}"></i></div><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+    }
+
+    function checkGateLogin() {
+        const user = document.getElementById('admin-user').value.trim();
+        const pass = document.getElementById('admin-pass').value;
+        const errEl = document.getElementById('login-error');
+        const btn = document.getElementById('login-btn');
+
+        btn.disabled = true;
+        const valid = AUTH_CREDENTIALS.some(c => c.user === user && c.pass === pass);
+        if (valid) {
+            sessionStorage.setItem('kstream_admin_auth', 'true');
+            document.getElementById('login-screen').remove();
+            document.getElementById('main-panel').classList.remove('hidden');
+            fetchCloudData();
+            showToast('Selamat datang, Admin!', 'success');
+        } else {
+            errEl.classList.remove('hidden');
+            btn.disabled = false;
+        }
+    }
+
+    // 🔒 FUNGSI UPGRADE: Paksa bersihkan session dan pindah ke landing page
+    function exitAndLogout() {
+        sessionStorage.removeItem('kstream_admin_auth');
+        window.location.href = HOME_URL;
+    }
+
+    function adminLogout() {
+        sessionStorage.removeItem('kstream_admin_auth');
+        location.reload();
+    }
+
+    if (sessionStorage.getItem('kstream_admin_auth') === 'true') {
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('login-screen').remove();
+            document.getElementById('main-panel').classList.remove('hidden');
+            fetchCloudData();
+        });
+    }
+
+    async function fetchCloudData() {
+        const { data, error } = await _supabase.from('drakor').select('*');
+        if (error) {
+            editorStack.innerHTML = `<div class="text-center py-4 text-red-400 text-xs">Gagal memuat database.</div>`;
+            document.getElementById('manager-result-count').textContent = 'Gagal memuat data';
+            return;
+        }
+        drakorDB = data || [];
+        calculateStats();
+        renderAdvancedManager();
+    }
+
+    function calculateStats() {
+        document.getElementById('stat-titles').innerText = drakorDB.length;
+        let epsCount = 0;
+        let brokenCount = 0;
+        let uncheckedCount = 0;
+        drakorDB.forEach(d => {
+            (d.episodes || []).forEach(eps => {
+                epsCount++;
+                if (eps.linkStatus === 'Broken') brokenCount++;
+                if (!eps.linkStatus || eps.linkStatus === 'Unchecked') uncheckedCount++;
+            });
+        });
+        document.getElementById('stat-episodes').innerText = epsCount;
+        document.getElementById('stat-broken').innerText = brokenCount;
+        document.getElementById('stat-unchecked').innerText = uncheckedCount;
+    }
+
+    document.getElementById('title').addEventListener('input', function() {
+        if (document.getElementById('edit-cloud-id').value !== '') return;
+
+        const currentInput = this.value.trim().toLowerCase();
+        if (currentInput.length < 2) return; 
+
+        const matchDrama = drakorDB.find(d => d.title.toLowerCase() === currentInput);
+
+        if (matchDrama) {
+            document.getElementById('genre').value = matchDrama.genre || 'Romance';
+            document.getElementById('year').value = matchDrama.year || '';
+            document.getElementById('image-url').value = matchDrama.image || '';
+            document.getElementById('synopsis').value = matchDrama.synopsis || '';
+            
+            document.getElementById('form-mode-title').innerText = "🔗 Append Mode: " + matchDrama.title;
+            document.getElementById('form-mode-desc').innerText = "Judul terdeteksi. Cukup lengkapi kolom Bagian/Episode dan URL Video player.";
+            document.getElementById('submit-btn-text').innerText = "Suntikkan Episode Baru";
+        } else {
+            document.getElementById('form-mode-title').innerText = "Injeksi Basis Data Cloud";
+            document.getElementById('form-mode-desc').innerText = "Sinkronisasi instan menggunakan klaster Supabase DB.";
+            document.getElementById('submit-btn-text').innerText = "Suntikkan Data Ke Supabase Cloud";
+        }
+        updateEpisodeWarning();
+    });
+
+    function getFormDraft() {
+        return {
+            title: document.getElementById('title').value,
+            episode: document.getElementById('episode').value,
+            genre: document.getElementById('genre').value,
+            year: document.getElementById('year').value,
+            image: document.getElementById('image-url').value,
+            synopsis: document.getElementById('synopsis').value,
+            videoUrl: document.getElementById('video-url').value
+        };
+    }
+
+    function setFormDraft(draft) {
+        if (!draft) return;
+        document.getElementById('title').value = draft.title || '';
+        document.getElementById('episode').value = draft.episode || '';
+        document.getElementById('genre').value = draft.genre || 'Romance';
+        document.getElementById('year').value = draft.year || '';
+        document.getElementById('image-url').value = draft.image || '';
+        document.getElementById('synopsis').value = draft.synopsis || '';
+        document.getElementById('video-url').value = draft.videoUrl || '';
+        updatePosterPreview();
+        updateEpisodeWarning();
+    }
+
+    function hasDraftContent(draft) {
+        return !!draft && Object.values(draft).some(v => String(v || '').trim() !== '');
+    }
+
+    function saveAdminDraft() {
+        if (document.getElementById('edit-cloud-id').value !== '') return;
+        const draft = getFormDraft();
+        if (!hasDraftContent(draft)) {
+            localStorage.removeItem(ADMIN_DRAFT_KEY);
+            updateDraftControls();
+            return;
+        }
+        localStorage.setItem(ADMIN_DRAFT_KEY, JSON.stringify(draft));
+        updateDraftControls(true);
+    }
+
+    function restoreAdminDraft() {
+        const draft = JSON.parse(localStorage.getItem(ADMIN_DRAFT_KEY) || 'null');
+        if (!draft) return;
+        setFormDraft(draft);
+        updateDraftControls(true);
+        showToast('Draft lokal dipulihkan', 'info');
+    }
+
+    function clearAdminDraft() {
+        localStorage.removeItem(ADMIN_DRAFT_KEY);
+        updateDraftControls(false);
+        showToast('Draft lokal dihapus', 'warning');
+    }
+
+    function updateDraftControls(isDirty = null) {
+        const hasSavedDraft = !!localStorage.getItem(ADMIN_DRAFT_KEY);
+        const isEditing = document.getElementById('edit-cloud-id').value !== '';
+        const draftIndicator = document.getElementById('draft-indicator');
+        const restoreBtn = document.getElementById('restore-draft-btn');
+        const clearBtn = document.getElementById('clear-draft-btn');
+        draftIndicator.classList.toggle('hidden', isEditing || isDirty === false || (!hasSavedDraft && isDirty !== true));
+        draftIndicator.classList.toggle('flex', !isEditing && (isDirty === true || hasSavedDraft));
+        restoreBtn.classList.toggle('hidden', isEditing || !hasSavedDraft);
+        clearBtn.classList.toggle('hidden', isEditing || !hasSavedDraft);
+    }
+
+    function updatePosterPreview() {
+        const url = document.getElementById('image-url').value.trim();
+        const preview = document.getElementById('poster-preview');
+        if (!url) {
+            preview.classList.add('hidden');
+            preview.src = '';
+            return;
+        }
+        preview.src = url;
+        preview.onerror = () => { preview.src = DEFAULT_POSTER; };
+        preview.classList.remove('hidden');
+    }
+
+    function updateEpisodeWarning() {
+        const title = document.getElementById('title').value.trim().toLowerCase();
+        const epsName = document.getElementById('episode').value.trim().toLowerCase();
+        const warning = document.getElementById('episode-warning');
+        const drama = drakorDB.find(d => d.title.toLowerCase() === title);
+        const duplicate = drama && epsName && (drama.episodes || []).some(eps => eps.epsName.toLowerCase() === epsName);
+        if (duplicate && document.getElementById('edit-episode-idx').value === '-1') {
+            warning.textContent = 'Episode dengan nama ini sudah ada. Submit akan memperbarui URL episode tersebut.';
+            warning.classList.remove('hidden');
+        } else {
+            warning.classList.add('hidden');
+            warning.textContent = '';
+        }
+    }
+
+    ['title','episode','genre','year','image-url','synopsis','video-url'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener('input', () => {
+            if (id === 'image-url') updatePosterPreview();
+            updateEpisodeWarning();
+            saveAdminDraft();
+        });
+        el.addEventListener('change', () => {
+            updateEpisodeWarning();
+            saveAdminDraft();
+        });
+    });
+
+    updateDraftControls();
+
+    document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+            event.preventDefault();
+            document.getElementById('upload-form').requestSubmit();
+        }
+        if (event.key === 'Escape' && document.getElementById('edit-cloud-id').value !== '') {
+            exitEditMode();
+        }
+    });
+
+    function formatAbyssUrl(url) {
+        const value = String(url || '').trim();
+        if (!value) return '';
+        if (/^https?:\/\//i.test(value)) return value;
+        return 'https://abyssplayer.com/' + value.replace(/^\/+/, '');
+    }
+
+    document.getElementById('upload-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submit-btn');
+        const submitBtnText = document.getElementById('submit-btn-text');
+        submitBtn.disabled = true;
+        submitBtnText.innerText = "Menyimpan ke cloud...";
+
+        const idTarget = document.getElementById('edit-cloud-id').value;
+        const episodeIdx = parseInt(document.getElementById('edit-episode-idx').value);
+        const title = document.getElementById('title').value.trim();
+        const epsName = document.getElementById('episode').value.trim();
+        const genre = document.getElementById('genre').value;
+        const year = document.getElementById('year').value || '2026';
+        const synopsis = document.getElementById('synopsis').value.trim() || 'Tidak ada deskripsi.';
+        const imageUrl = document.getElementById('image-url').value.trim() || "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=400&fit=crop";
+        const videoUrl = formatAbyssUrl(document.getElementById('video-url').value);
+
+        const { data: latestData } = await _supabase.from('drakor').select('*');
+        if (latestData) drakorDB = latestData;
+
+        if (idTarget !== '') {
+            let currentDrama = drakorDB.find(d => d.id == idTarget);
+            if (!currentDrama) { showToast('Data tidak ditemukan', 'error'); exitEditMode(); return; }
+
+            let updatedEpisodes = [...(currentDrama.episodes || [])];
+            if (episodeIdx >= 0 && updatedEpisodes[episodeIdx]) {
+                if (!epsName || !videoUrl) { showToast('Form Episode & URL wajib diisi!', 'warning'); submitBtn.disabled = false; return; }
+                updatedEpisodes[episodeIdx] = { epsName, videoUrl, linkStatus: 'Unchecked' };
+            } else {
+                if (epsName && videoUrl) {
+                    let ex = updatedEpisodes.find(e => e.epsName.toLowerCase() === epsName.toLowerCase());
+                    if (ex) ex.videoUrl = videoUrl;
+                    else updatedEpisodes.push({ epsName, videoUrl, linkStatus: 'Unchecked' });
+                }
+            }
+            const { error } = await _supabase.from('drakor').update({ title, genre, year, synopsis, image: imageUrl, episodes: updatedEpisodes }).eq('id', idTarget);
+            if (error) showToast('Gagal memperbarui data', 'error');
+            else showToast('Data berhasil diperbarui!', 'success');
+            exitEditMode();
+        } 
+        else {
+            let existingDrama = drakorDB.find(d => d.title.toLowerCase() === title.toLowerCase());
+            if (existingDrama) {
+                if (!epsName || !videoUrl) { showToast('Wajib isi Episode & URL untuk tambah eps baru!', 'warning'); submitBtn.disabled = false; submitBtnText.innerText = "Suntikkan Data"; return; }
+                let updatedEpisodes = [...(existingDrama.episodes || [])];
+                let ex = updatedEpisodes.find(e => e.epsName.toLowerCase() === epsName.toLowerCase());
+                if (ex) ex.videoUrl = videoUrl;
+                else updatedEpisodes.push({ epsName, videoUrl, linkStatus: 'Unchecked' });
+                
+                const { error } = await _supabase.from('drakor').update({ episodes: updatedEpisodes, image: document.getElementById('image-url').value.trim() ? imageUrl : existingDrama.image, genre, year, synopsis }).eq('id', existingDrama.id);
+                if (error) showToast('Gagal menambah episode', 'error');
+                else showToast(`Episode "${epsName}" berhasil disuntikkan!`, 'success');
+            } else {
+                if (!epsName || !videoUrl) { showToast('Wajib isi Episode & URL untuk drama baru!', 'warning'); submitBtn.disabled = false; submitBtnText.innerText = "Suntikkan Data"; return; }
+                const { error } = await _supabase.from('drakor').insert([{ title, image: imageUrl, genre, year, synopsis, episodes: [{ epsName, videoUrl, linkStatus: 'Unchecked' }] }]);
+                if (error) showToast('Gagal menambahkan drama', 'error');
+                else showToast(`Drama "${title}" berhasil didaftarkan!`, 'success');
+            }
+        }
+
+        document.getElementById('episode').value = '';
+        document.getElementById('video-url').value = '';
+        localStorage.removeItem(ADMIN_DRAFT_KEY);
+        updateDraftControls(false);
+        updatePosterPreview();
+        updateEpisodeWarning();
+        submitBtn.disabled = false;
+        submitBtnText.innerText = "Suntikkan Data Ke Supabase Cloud";
+        await fetchCloudData();
+    });
+
+    function enterEditMode(id) {
+        const drama = drakorDB.find(d => d.id == id);
+        if (!drama) return;
+        document.getElementById('edit-cloud-id').value = drama.id;
+        document.getElementById('edit-episode-idx').value = "-1";
+        document.getElementById('title').value = drama.title;
+        document.getElementById('genre').value = drama.genre || 'Romance';
+        document.getElementById('year').value = drama.year || '2026';
+        document.getElementById('image-url').value = drama.image || '';
+        document.getElementById('synopsis').value = drama.synopsis || '';
+        document.getElementById('episode').value = '';
+        document.getElementById('video-url').value = '';
+        
+        document.getElementById('form-mode-title').innerText = "📋 Mode Edit Drama: " + drama.title;
+        document.getElementById('form-mode-desc').innerText = "Mengubah rincian metadata di awan server cloud.";
+        document.getElementById('submit-btn-text').innerText = "Simpan Perubahan Drama";
+        document.getElementById('cancel-edit-btn').classList.remove('hidden');
+        updatePosterPreview();
+        updateEpisodeWarning();
+        updateDraftControls(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function enterEditEpisodeMode(dIdx, eIdx) {
+        const drama = drakorDB[dIdx];
+        if (!drama || !drama.episodes[eIdx]) return;
+        const eps = drama.episodes[eIdx];
+        document.getElementById('edit-cloud-id').value = drama.id;
+        document.getElementById('edit-episode-idx').value = eIdx;
+        document.getElementById('title').value = drama.title;
+        document.getElementById('genre').value = drama.genre || 'Romance';
+        document.getElementById('year').value = drama.year || '2026';
+        document.getElementById('image-url').value = drama.image || '';
+        document.getElementById('synopsis').value = drama.synopsis || '';
+        document.getElementById('episode').value = eps.epsName;
+        document.getElementById('video-url').value = eps.videoUrl;
+        
+        document.getElementById('form-mode-title').innerText = `🎬 Edit: ${drama.title} — ${eps.epsName}`;
+        document.getElementById('form-mode-desc').innerText = "Mengoreksi rincian nama atau URL penayangan video player.";
+        document.getElementById('submit-btn-text').innerText = "Simpan Perubahan Episode";
+        document.getElementById('cancel-edit-btn').classList.remove('hidden');
+        updatePosterPreview();
+        updateEpisodeWarning();
+        updateDraftControls(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function exitEditMode() {
+        document.getElementById('upload-form').reset();
+        document.getElementById('edit-cloud-id').value = '';
+        document.getElementById('edit-episode-idx').value = '-1';
+        document.getElementById('form-mode-title').innerText = "Injeksi Basis Data Cloud";
+        document.getElementById('form-mode-desc').innerText = "Sinkronisasi instan menggunakan klaster Supabase DB.";
+        document.getElementById('submit-btn-text').innerText = "Suntikkan Data Ke Supabase Cloud";
+        document.getElementById('cancel-edit-btn').classList.add('hidden');
+        updatePosterPreview();
+        updateEpisodeWarning();
+        updateDraftControls();
+    }
+
+    function getEpisodeStatus(eps) {
+        return eps.linkStatus || 'Unchecked';
+    }
+
+    function getBrokenCount(drama) {
+        return (drama.episodes || []).filter(eps => getEpisodeStatus(eps) === 'Broken').length;
+    }
+
+    function getManagerText(drama) {
+        const epsText = (drama.episodes || []).map(eps => `${eps.epsName} ${eps.videoUrl} ${getEpisodeStatus(eps)}`).join(' ');
+        return `${drama.title} ${drama.genre || ''} ${drama.year || ''} ${drama.synopsis || ''} ${epsText}`.toLowerCase();
+    }
+
+    function getFilteredManagerData() {
+        const q = (document.getElementById('manager-search')?.value || '').trim().toLowerCase();
+        const status = document.getElementById('manager-status-filter')?.value || 'all';
+        const sort = document.getElementById('manager-sort')?.value || 'newest';
+
+        let list = drakorDB.filter(drama => {
+            const matchesText = !q || getManagerText(drama).includes(q);
+            const matchesStatus = status === 'all' || (drama.episodes || []).some(eps => getEpisodeStatus(eps) === status);
+            return matchesText && matchesStatus;
+        });
+
+        return [...list].sort((a, b) => {
+            if (sort === 'title') return String(a.title || '').localeCompare(String(b.title || ''));
+            if (sort === 'episodes') return (b.episodes || []).length - (a.episodes || []).length;
+            if (sort === 'broken') return getBrokenCount(b) - getBrokenCount(a);
+            return Number(b.id || 0) - Number(a.id || 0);
+        });
+    }
+
+    function renderAdvancedManager() {
+        editorStack.innerHTML = '';
+        const managerCount = document.getElementById('manager-result-count');
+        const filteredData = getFilteredManagerData();
+        managerCount.textContent = `${filteredData.length} dari ${drakorDB.length} judul ditampilkan`;
+        if (drakorDB.length === 0) {
+            editorStack.innerHTML = `<div class="empty-state text-dark-muted text-xs"><i class="fa-solid fa-database text-xl mb-2 block"></i>Pangkalan data cluster cloud masih kosong.</div>`;
+            return;
+        }
+        if (filteredData.length === 0) {
+            editorStack.innerHTML = `<div class="empty-state text-dark-muted text-xs"><i class="fa-solid fa-filter-circle-xmark text-xl mb-2 block"></i>Tidak ada data yang cocok dengan filter.</div>`;
+            return;
+        }
+        filteredData.forEach((drama) => {
+            const dIdx = drakorDB.findIndex(d => d.id == drama.id);
+            const block = document.createElement('div');
+            block.className = 'manager-card';
+            let subRowsHtml = '';
+            (drama.episodes || []).forEach((eps, eIdx) => {
+                let badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-400">Belum Dicek</span>`;
+                if (eps.linkStatus === 'Active') badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20"><i class="fa-solid fa-circle-check mr-1"></i>Active</span>`;
+                if (eps.linkStatus === 'Broken') badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Broken</span>`;
+                
+                subRowsHtml += `
+                    <div class="flex items-center justify-between p-3 bg-dark-surface/40 rounded-xl border border-dark-border/40 text-xs gap-4">
+                        <div class="flex-1 min-w-0">
+                            <span class="font-bold text-white block">${eps.epsName}</span>
+                            <span class="text-dark-muted truncate block max-w-md mt-0.5">${eps.videoUrl}</span>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0">
+                            ${badge}
+                            <button onclick="enterEditEpisodeMode(${dIdx}, ${eIdx})" class="text-blue-400 hover:text-blue-300 px-1" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteSingleEpisode(${dIdx}, ${eIdx})" class="text-red-400 hover:text-red-300 px-1" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>`;
+            });
+            block.innerHTML = `
+                <div class="p-4 bg-dark-surface flex items-center justify-between cursor-pointer border-b border-dark-border" onclick="toggleAccordion('sub-cluster-${dIdx}')">
+                    <div class="min-w-0">
+                        <h4 class="text-sm font-bold text-white">${drama.title} <span class="text-xs text-dark-muted font-normal ml-2">(${drama.genre || 'K-Drama'} • ${drama.year || '2026'})</span></h4>
+                        <p class="text-[11px] text-brand font-medium mt-0.5"><i class="fa-solid fa-layer-group"></i> ${(drama.episodes || []).length} Episode Tersemat ${getBrokenCount(drama) ? `<span class="text-red-400 ml-2"><i class="fa-solid fa-triangle-exclamation"></i> ${getBrokenCount(drama)} Broken</span>` : ''}</p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="event.stopPropagation(); enterEditMode('${drama.id}')" class="bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-600/20 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                        <button onclick="deleteEntireDrama(event, '${drama.id}', '${drama.title.replace(/'/g, "\\'")}')" class="bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/20 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"><i class="fa-solid fa-trash"></i> Hapus</button>
+                        <i class="fa-solid fa-chevron-down text-dark-muted text-xs ml-1"></i>
+                    </div>
+                </div>
+                <div id="sub-cluster-${dIdx}" class="hidden p-4 space-y-2 bg-dark-bg/60">${subRowsHtml}</div>`;
+            editorStack.appendChild(block);
+        });
+    }
+
+    function toggleAccordion(id) { document.getElementById(id).classList.toggle('hidden'); }
+
+    function expandAllAccordions() {
+        document.querySelectorAll('[id^="sub-cluster-"]').forEach(el => el.classList.remove('hidden'));
+    }
+
+    function collapseAllAccordions() {
+        document.querySelectorAll('[id^="sub-cluster-"]').forEach(el => el.classList.add('hidden'));
+    }
+
+    async function deleteSingleEpisode(dIdx, eIdx) {
+        const drama = drakorDB[dIdx];
+        if (!confirm(`Hapus episode "${drama.episodes[eIdx].epsName}" dari "${drama.title}"?`)) return;
+        let updatedEps = [...drama.episodes];
+        updatedEps.splice(eIdx, 1);
+        if (updatedEps.length === 0) {
+            await _supabase.from('drakor').delete().eq('id', drama.id);
+        } else {
+            await _supabase.from('drakor').update({ episodes: updatedEps }).eq('id', drama.id);
+        }
+        showToast('Episode berhasil dihapus', 'warning');
+        await fetchCloudData();
+    }
+
+    async function deleteEntireDrama(event, cloudId, title) {
+        event.stopPropagation();
+        if (!confirm(`Hapus total drama "${title}" dari cloud?`)) return;
+        const actualDelete = await _supabase.from('drakor').delete().eq('id', cloudId);
+        if (actualDelete.error) showToast('Gagal menghapus data', 'error');
+        else showToast(`"${title}" berhasil dihapus`, 'warning');
+        await fetchCloudData();
+    }
+
+    async function runGlobalLinkChecker() {
+        if (drakorDB.length === 0) { showToast('Database kosong', 'warning'); return; }
+        showToast('Memulai pemindaian link...', 'info');
+        for (let drama of drakorDB) {
+            let updatedEps = drama.episodes.map(eps => {
+                const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
+                return { ...eps, linkStatus: (urlPattern.test(eps.videoUrl) && eps.videoUrl.length > 25) ? 'Active' : 'Broken' };
+            });
+            await _supabase.from('drakor').update({ episodes: updatedEps }).eq('id', drama.id);
+        }
+        await fetchCloudData();
+        showToast('Pemindaian selesai & diperbarui!', 'success');
+    }
+</script>
+</body>
+</html>
