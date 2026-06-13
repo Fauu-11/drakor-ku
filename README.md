@@ -61,22 +61,9 @@ Kolom `episodes` pada tabel `drakor` berisi array JSON:
   }
 ]
 ```
-
-## File utama
-
-```text
-index.html
-player.html
-admin.html
-css/app.css
-js/config.js
-js/common.js
-js/home.js
-js/player.js
-js/admin.js
-database/setup.sql
-```
+Test web
+```https://fauu-11.github.io/drakor-ku/index.html```
 
 ## Catatan keamanan
 
-Login `admin / 110301` adalah gerbang demo di browser dan dapat dilihat dari source code. Untuk deployment publik, gunakan Supabase Auth dengan role admin atau backend/Edge Function yang memverifikasi akses sebelum CRUD katalog.
+Login admin adalah gerbang demo di browser dan dapat dilihat dari source code. Untuk deployment publik, gunakan Supabase Auth dengan role admin atau backend/Edge Function yang memverifikasi akses sebelum CRUD katalog.
