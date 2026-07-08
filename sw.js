@@ -1,12 +1,14 @@
-const CACHE_NAME = 'kstream-static-v5';
+const CACHE_NAME = 'kstream-static-v7';
 const APP_SHELL = [
   './',
   './index.html',
   './player.html',
   './admin.html',
   './manifest.json',
+  './css/index.css',
   './css/app.css',
   './js/config.js',
+  './js/index.min.js',
   './js/common.js',
   './js/home.js',
   './js/player.js',

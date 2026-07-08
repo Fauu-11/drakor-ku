@@ -1,0 +1,23 @@
+module.exports = {
+  content: ['./index.html', './js/index.js'],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif']
+      },
+      colors: {
+        brand: {
+          DEFAULT: '#ff2a74',
+          hover: '#e11d62',
+          glow: 'rgba(255, 42, 116, 0.4)'
+        },
+        dark: {
+          bg: '#020205',
+          surface: '#0d0d14',
+          border: '#1f1f2e',
+          muted: '#64748b'
+        }
+      }
+    }
+  }
+};
