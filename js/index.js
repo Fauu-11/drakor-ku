@@ -2,10 +2,32 @@ const SUPABASE_URL = window.KSTREAM_CONFIG.supabaseUrl;
 const SUPABASE_KEY = window.KSTREAM_CONFIG.supabaseAnonKey;
 const PLAYER_URL = "./player.html";
 const ADMIN_URL = "./admin.html";
-const _supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY,
-);
+const SUPABASE_REST_URL = `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1`;
+
+function createRestUrl(table, query = {}) {
+  const url = new URL(`${SUPABASE_REST_URL}/${table}`);
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, value);
+    }
+  });
+  return url;
+}
+
+async function restSelect(table, query = {}) {
+  const response = await fetch(createRestUrl(table, query), {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Accept: "application/json",
+    },
+  });
+  if (!response.ok) {
+    const error = new Error(`Supabase REST gagal (${response.status}).`);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
 function safeJsonGet(key, fallback) {
   try {
     const value = localStorage.getItem(key);
@@ -45,11 +67,14 @@ let lastFocusedElement = null;
 let currentView = "home";
 const gridContainer = document.getElementById("drakor-container");
 const CATALOG_FIELDS = "id,title,image,genre,year,synopsis,episodes,created_at";
+const CATALOG_CACHE_KEY = "kstream_catalog_cache_v1";
 const HERO_IMAGE_SIZES = "100vw";
 const POSTER_IMAGE_SIZES =
   "(min-width: 1280px) 18vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw";
 const DEFAULT_POSTER =
   "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=480&q=70";
+const EMPTY_IMAGE =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 const GENRE_OPTIONS = [
   { value: "All", label: "Semua" },
   { value: "Drama", label: "Drama" },
@@ -122,6 +147,11 @@ function safeImageUrl(url, width = 640, quality = 72) {
       if (!parsed.searchParams.has("fit")) parsed.searchParams.set("fit", "crop");
       parsed.searchParams.set("w", String(width));
       parsed.searchParams.set("q", String(quality));
+    }
+    if (/^i\d+\.wp\.com$/i.test(parsed.hostname)) {
+      parsed.searchParams.set("w", String(width));
+      parsed.searchParams.set("quality", String(quality));
+      parsed.searchParams.set("strip", "all");
     }
     return parsed.href;
   } catch {
@@ -271,8 +301,17 @@ function setupHero(data) {
     const slide = document.createElement("div");
     slide.className = "hero-slide" + (i === 0 ? " active" : "");
     const title = escapeHTML(drama.title || "Tayangan K-STREAM");
-    const image = safeImageUrl(drama.image, i === 0 ? 1280 : 960, 70);
-    slide.innerHTML = ` <img src="${image}" alt="Banner ${title}" class="w-full h-full object-cover opacity-30" width="1280" height="720" sizes="${HERO_IMAGE_SIZES}" loading="${i === 0 ? "eager" : "lazy"}" decoding="async" fetchpriority="${i === 0 ? "high" : "low"}" onerror="this.onerror=null;this.src='${DEFAULT_POSTER}'" > `;
+    const mobileHero = isMobileViewport();
+    const image = safeImageUrl(
+      drama.image,
+      i === 0 ? (mobileHero ? 640 : 1280) : mobileHero ? 560 : 960,
+      mobileHero ? 58 : 70,
+    );
+    const imageSource =
+      i === 0
+        ? `src="${image}"`
+        : `src="${EMPTY_IMAGE}" data-src="${image}"`;
+    slide.innerHTML = ` <img ${imageSource} alt="Banner ${title}" class="w-full h-full object-cover opacity-30" width="1280" height="720" sizes="${HERO_IMAGE_SIZES}" loading="${i === 0 ? "eager" : "lazy"}" decoding="async" fetchpriority="${i === 0 ? "high" : "low"}" onerror="this.onerror=null;this.src='${DEFAULT_POSTER}'" > `;
     container.appendChild(slide);
   });
   updateHeroContent(0);
@@ -288,6 +327,7 @@ function setupHero(data) {
   });
   if (heroInterval) clearInterval(heroInterval);
   if (heroFeatured.length > 1) {
+    setTimeout(() => ensureHeroSlideImage(1), 2500);
     heroInterval = setInterval(() => {
       goHeroSlide((heroCurrentIdx + 1) % heroFeatured.length);
     }, 5000);
@@ -305,7 +345,14 @@ function updateHeroContent(idx) {
     2,
   );
 }
+function ensureHeroSlideImage(idx) {
+  const image = document.querySelectorAll(".hero-slide img")[idx];
+  if (!image?.dataset.src) return;
+  image.src = image.dataset.src;
+  delete image.dataset.src;
+}
 function goHeroSlide(idx) {
+  ensureHeroSlideImage(idx);
   const slides = document.querySelectorAll(".hero-slide");
   const dots = document.querySelectorAll(".hero-dot");
   slides.forEach((slide, i) =>
@@ -314,6 +361,10 @@ function goHeroSlide(idx) {
   dots.forEach((dot, i) => dot.classList.toggle("active", i === idx));
   heroCurrentIdx = idx;
   updateHeroContent(idx);
+  if (heroFeatured.length > 1) {
+    const nextIdx = (idx + 1) % heroFeatured.length;
+    setTimeout(() => ensureHeroSlideImage(nextIdx), 1200);
+  }
 }
 function heroPlay() {
   const drama = heroFeatured[heroCurrentIdx];
@@ -805,12 +856,12 @@ async function fetchRatingSummaries() {
       { average: Number(rating), count: 1 },
     ]),
   );
-  const viewResult = await _supabase
-    .from("drakor_rating_summary")
-    .select("drakor_id,average_rating,rating_count");
-  if (!viewResult.error) {
+  try {
+    const viewData = await restSelect("drakor_rating_summary", {
+      select: "drakor_id,average_rating,rating_count",
+    });
     const cloudSummary = Object.fromEntries(
-      (viewResult.data || []).map((item) => [
+      (viewData || []).map((item) => [
         String(item.drakor_id),
         {
           average: Number(item.average_rating || 0),
@@ -822,21 +873,26 @@ async function fetchRatingSummaries() {
       if (!cloudSummary[id]) cloudSummary[id] = summary;
     });
     return cloudSummary;
+  } catch {
+    // View komunitas mungkin belum dipasang; coba tabel rating langsung.
   }
-  const ratingResult = await _supabase
-    .from("drakor_ratings")
-    .select("drakor_id,rating");
-  if (ratingResult.error) return localSummary;
-  return (ratingResult.data || []).reduce((summary, item) => {
-    const key = String(item.drakor_id);
-    if (!summary[key]) {
-      summary[key] = { total: 0, count: 0, average: 0 };
-    }
-    summary[key].total += Number(item.rating || 0);
-    summary[key].count += 1;
-    summary[key].average = summary[key].total / summary[key].count;
-    return summary;
-  }, {});
+  try {
+    const ratingData = await restSelect("drakor_ratings", {
+      select: "drakor_id,rating",
+    });
+    return (ratingData || []).reduce((summary, item) => {
+      const key = String(item.drakor_id);
+      if (!summary[key]) {
+        summary[key] = { total: 0, count: 0, average: 0 };
+      }
+      summary[key].total += Number(item.rating || 0);
+      summary[key].count += 1;
+      summary[key].average = summary[key].total / summary[key].count;
+      return summary;
+    }, {});
+  } catch {
+    return localSummary;
+  }
 }
 function normalizeCatalogDrama(drama, summary = {}) {
   return {
@@ -892,21 +948,47 @@ async function refreshRatingsLater() {
     console.warn("Rating gagal dimuat:", error);
   }
 }
-async function fetchCloudData() {
-  showSkeletons(10);
+
+function renderLoadedCatalog() {
+  setupHero(drakorDB);
+  renderGenreChips();
+  displayCatalog();
+  checkHistory();
+  if (currentView === "home") setActiveNav("home");
+  else switchView(currentView);
+}
+
+function saveCatalogCache(data) {
   try {
-    const { data, error } = await _supabase
-      .from("drakor")
-      .select(CATALOG_FIELDS)
-      .order("id", { ascending: false });
-    if (error) throw error;
+    localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Cache katalog hanya akselerator; kegagalannya tidak boleh memblokir UI.
+  }
+}
+
+async function fetchCloudData() {
+  const cachedCatalog = safeJsonGet(CATALOG_CACHE_KEY, []);
+  const hasCachedCatalog =
+    Array.isArray(cachedCatalog) && cachedCatalog.length > 0;
+
+  if (hasCachedCatalog) {
+    drakorDB = cachedCatalog.map((drama) => normalizeCatalogDrama(drama));
+    renderLoadedCatalog();
+  } else {
+    showSkeletons(10);
+  }
+
+  try {
+    const data = await restSelect("drakor", {
+      select: CATALOG_FIELDS,
+      order: "id.desc",
+    });
+    const catalogChanged =
+      !hasCachedCatalog ||
+      JSON.stringify(cachedCatalog) !== JSON.stringify(data || []);
+    saveCatalogCache(data || []);
     drakorDB = (data || []).map((drama) => normalizeCatalogDrama(drama));
-    setupHero(drakorDB);
-    renderGenreChips();
-    displayCatalog();
-    checkHistory();
-    if (currentView === "home") setActiveNav("home");
-    else switchView(currentView);
+    if (catalogChanged) renderLoadedCatalog();
     runWhenIdle(() => {
       if (!isMobileViewport()) {
         displayWatchlist();
@@ -916,7 +998,9 @@ async function fetchCloudData() {
     });
   } catch (err) {
     console.error(err);
-    gridContainer.innerHTML = ` <div class="col-span-full p-4 text-center text-red-500 border border-red-500/20 bg-red-500/10 rounded-2xl"> Koneksi Cloud Gagal. Jalankan menggunakan Local Server! </div> `;
+    if (!hasCachedCatalog) {
+      gridContainer.innerHTML = ` <div class="col-span-full p-4 text-center text-red-500 border border-red-500/20 bg-red-500/10 rounded-2xl"> Koneksi Cloud Gagal. Coba muat ulang halaman. </div> `;
+    }
   }
 }
 document.addEventListener("keydown", function (event) {
