@@ -42,8 +42,8 @@
 
   let drama = null;
   let episodeIndex = requestedEpisode;
-  let plyr = null;
-  let dashPlayer = null;
+  let shakaPlayer = null;
+  let shakaUi = null;
   let communityCloudReady = true;
   let lastPositionWrite = 0;
 
@@ -71,15 +71,37 @@
     return safeJsonGet('playback-positions', {});
   }
 
+  function readLocalJson(key, fallback) {
+    try {
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function writeLocalJson(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
   function savePosition() {
-    if (!drama || !plyr || !Number.isFinite(plyr.currentTime) || plyr.currentTime < 3) return;
+    const video = elements.video;
+    if (!drama || !Number.isFinite(video.currentTime) || video.currentTime < 3) return;
     const positions = getPositions();
-    positions[episodePositionKey()] = {
-      time: Math.floor(plyr.currentTime),
-      duration: Math.floor(plyr.duration || 0),
+    const position = {
+      time: Math.floor(video.currentTime),
+      duration: Math.floor(video.duration || 0),
       updatedAt: Date.now()
     };
+    positions[episodePositionKey()] = position;
     safeJsonSet('playback-positions', positions);
+
+    const legacyProgress = readLocalJson('kstream_progress', {});
+    legacyProgress[String(drama.id)] = {
+      ...(legacyProgress[String(drama.id)] || {}),
+      [episodeIndex]: position
+    };
+    writeLocalJson('kstream_progress', legacyProgress);
   }
 
   function savePositionThrottled() {
@@ -90,21 +112,34 @@
 
   function restorePosition() {
     const saved = getPositions()[episodePositionKey()];
-    if (!saved || saved.time < 5 || !plyr.duration || saved.time >= plyr.duration - 15) return;
-    plyr.currentTime = saved.time;
+    const duration = elements.video.duration;
+    if (!saved || saved.time < 5 || !duration || saved.time >= duration - 15) return;
+    elements.video.currentTime = saved.time;
     showToast(`Melanjutkan dari menit ${Math.floor(saved.time / 60)}.`, 'info');
   }
 
-  function ensureDashScript() {
-    if (window.dashjs) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.dashjs.org/latest/dash.all.min.js';
-      script.async = true;
-      script.onload = resolve;
-      script.onerror = () => reject(new Error('dash.js gagal dimuat.'));
-      document.head.appendChild(script);
-    });
+  async function resetMediaSource() {
+    elements.video.pause();
+    if (shakaPlayer) {
+      try {
+        await shakaPlayer.unload();
+      } catch (error) {
+        console.warn('Shaka unload gagal:', error);
+      }
+    }
+    elements.video.removeAttribute('src');
+    elements.video.removeAttribute('poster');
+    elements.video.load();
+  }
+
+  function isAdaptiveStream(url) {
+    return /\.(?:mpd|m3u8)(?:$|[?#])/i.test(url);
+  }
+
+  function handleShakaError(event) {
+    const error = event?.detail || event;
+    console.error('Shaka Player error:', error);
+    setLoading(false);
   }
 
   function youtubeEmbed(url) {
@@ -116,19 +151,15 @@
     const episode = drama.episodes[episodeIndex];
     const url = String(episode?.videoUrl || '').trim();
     setLoading(true);
+    await resetMediaSource();
     elements.empty.classList.add('hidden');
     elements.empty.classList.remove('flex');
     elements.embed.src = '';
     elements.embedWrapper.classList.add('hidden');
     elements.videoWrapper.classList.remove('hidden');
-
-    if (dashPlayer) {
-      dashPlayer.reset();
-      dashPlayer = null;
-    }
+    elements.video.poster = drama.image || config.defaultPoster;
 
     if (!url) {
-      plyr.stop();
       elements.videoWrapper.classList.add('hidden');
       elements.empty.classList.remove('hidden');
       elements.empty.classList.add('flex');
@@ -140,14 +171,12 @@
 
     try {
       if (/abyssplayer/i.test(url)) {
-        plyr.pause();
         elements.videoWrapper.classList.add('hidden');
         elements.embedWrapper.classList.remove('hidden');
         elements.embed.onload = () => setLoading(false);
         elements.embed.src = url;
         setTimeout(() => setLoading(false), 3500);
       } else if (/\/embed\/|kisskh/i.test(url)) {
-        plyr.pause();
         elements.videoWrapper.classList.add('hidden');
         elements.embedWrapper.classList.add('hidden');
         elements.empty.classList.remove('hidden');
@@ -156,28 +185,26 @@
         elements.empty.querySelector('p').textContent = 'Gunakan URL MP4, HLS, DASH, atau YouTube agar pemutar tetap aman dan stabil.';
         setLoading(false);
       } else if (/youtu\.be|youtube\.com/i.test(url)) {
-        plyr.pause();
         elements.videoWrapper.classList.add('hidden');
         elements.embedWrapper.classList.remove('hidden');
         elements.embed.src = youtubeEmbed(url);
         setLoading(false);
-      } else if (/\.mpd(?:$|\?)/i.test(url)) {
-        await ensureDashScript();
-        dashPlayer = window.dashjs.MediaPlayer().create();
-        dashPlayer.initialize(elements.video, url, true);
+      } else if (isAdaptiveStream(url)) {
+        if (!shakaPlayer) {
+          throw new Error('Shaka Player tidak tersedia pada browser ini');
+        }
+        await shakaPlayer.load(url);
+        elements.video.play().catch(() => {});
       } else {
-        plyr.source = {
-          type: 'video',
-          title: `${drama.title} — ${episode.epsName}`,
-          poster: drama.image || config.defaultPoster,
-          sources: [{ src: url, type: /\.m3u8(?:$|\?)/i.test(url) ? 'application/x-mpegURL' : 'video/mp4' }]
-        };
-        setTimeout(() => plyr.play().catch(() => {}), 300);
+        elements.video.src = url;
+        elements.video.load();
+        elements.video.play().catch(() => {});
       }
     } catch (error) {
       console.error(error);
       setLoading(false);
-      showToast(error.message || 'Sumber video gagal dimuat.', 'error');
+      const code = error?.code ? ` (kode ${error.code})` : '';
+      showToast(`Sumber video gagal dimuat${code}.`, 'error');
     }
   }
 
@@ -222,17 +249,34 @@
 
   function addHistory() {
     const episode = drama.episodes[episodeIndex];
+    const episodeName = episode?.epsName || `Episode ${episodeIndex + 1}`;
+    const watchedAt = Date.now();
     const current = safeJsonGet('history', []);
     const next = current.filter(item => !(String(item.dramaId) === String(drama.id) && item.episodeIndex === episodeIndex));
     next.unshift({
       dramaId: drama.id,
       episodeIndex,
       title: drama.title,
-      episode: episode?.epsName || `Episode ${episodeIndex + 1}`,
+      episode: episodeName,
       year: drama.year || '',
-      watchedAt: Date.now()
+      watchedAt
     });
     safeJsonSet('history', next.slice(0, 20));
+
+    const legacyItem = {
+      cloudId: drama.id,
+      epsIdx: episodeIndex,
+      title: drama.title,
+      episode: episodeName,
+      label: `${drama.title} - ${episodeName}`,
+      progress: 0,
+      watchedAt
+    };
+    const legacyHistory = readLocalJson('kstream_watch_history', [])
+      .filter(item => !(String(item.cloudId) === String(drama.id) && Number(item.epsIdx || 0) === episodeIndex));
+    legacyHistory.unshift(legacyItem);
+    writeLocalJson('kstream_watch_history', legacyHistory.slice(0, 30));
+    writeLocalJson('lastWatched', legacyItem);
   }
 
   function renderHistory() {
@@ -262,7 +306,10 @@
   }
 
   async function loadRatings() {
-    const localRatings = safeJsonGet('ratings', {});
+    const localRatings = {
+      ...readLocalJson('kstream_user_ratings', {}),
+      ...safeJsonGet('ratings', {})
+    };
     setSelectedRating(Number(localRatings[drama.id] || 0));
 
     const { data, error } = await supabase
@@ -295,6 +342,9 @@
     const localRatings = safeJsonGet('ratings', {});
     localRatings[drama.id] = value;
     safeJsonSet('ratings', localRatings);
+    const legacyRatings = readLocalJson('kstream_user_ratings', {});
+    legacyRatings[drama.id] = value;
+    writeLocalJson('kstream_user_ratings', legacyRatings);
     setSelectedRating(value);
 
     try {
@@ -436,20 +486,53 @@
     }
 
     setConnectionBadge(elements.connectionBadge, 'loading');
-    plyr = new Plyr(elements.video, {
-      controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
-      settings: ['speed'],
-      seekTime: 10,
-      speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
-      ratio: '16:9',
-      tooltips: { controls: true, seek: true }
-    });
-    plyr.on('waiting', () => setLoading(true));
-    plyr.on('playing', () => setLoading(false));
-    plyr.on('canplay', () => setLoading(false));
-    plyr.on('loadedmetadata', restorePosition);
-    plyr.on('timeupdate', savePositionThrottled);
-    plyr.on('ended', () => {
+    if (window.shaka) {
+      shaka.polyfill.installAll();
+      if (shaka.Player.isBrowserSupported() && shaka.ui?.Overlay) {
+        shakaPlayer = new shaka.Player();
+        await shakaPlayer.attach(elements.video);
+        shakaPlayer.configure({
+          abr: { enabled: true },
+          streaming: {
+            bufferingGoal: 24,
+            rebufferingGoal: 2,
+            bufferBehind: 20
+          }
+        });
+        shakaPlayer.addEventListener('error', handleShakaError);
+
+        shakaUi = new shaka.ui.Overlay(
+          shakaPlayer,
+          elements.videoWrapper,
+          elements.video
+        );
+        shakaUi.configure({
+          addSeekBar: true,
+          enableTooltips: true,
+          bigButtons: ['play_pause'],
+          playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+          controlPanelElements: [
+            'play_pause', 'rewind', 'fast_forward', 'time_and_duration',
+            'spacer', 'mute', 'volume', 'overflow_menu', 'fullscreen'
+          ],
+          overflowMenuButtons: [
+            'quality', 'captions', 'language', 'playback_rate',
+            'picture_in_picture'
+          ]
+        });
+      }
+    }
+    if (!shakaPlayer) {
+      elements.video.controls = true;
+      console.warn('Shaka Player tidak tersedia; MP4 memakai kontrol native.');
+    }
+
+    elements.video.addEventListener('waiting', () => setLoading(true));
+    elements.video.addEventListener('playing', () => setLoading(false));
+    elements.video.addEventListener('canplay', () => setLoading(false));
+    elements.video.addEventListener('loadedmetadata', restorePosition);
+    elements.video.addEventListener('timeupdate', savePositionThrottled);
+    elements.video.addEventListener('ended', () => {
       if (drama.episodes[episodeIndex + 1]) selectEpisode(episodeIndex + 1);
     });
 
@@ -493,6 +576,8 @@
   elements.shareButton.addEventListener('click', share);
   elements.clearHistory.addEventListener('click', () => {
     safeJsonSet('history', []);
+    writeLocalJson('kstream_watch_history', []);
+    localStorage.removeItem('lastWatched');
     renderHistory();
     showToast('Riwayat dihapus.', 'success');
   });
