@@ -199,7 +199,12 @@ function handleAdminEasterEgg(event) {
 function setActiveNav(view) {
   ["home", "search", "history", "watchlist"].forEach((v) => {
     const mobileBtn = document.getElementById("bnav-" + v);
-    if (mobileBtn) mobileBtn.classList.toggle("active", v === view);
+    if (mobileBtn) {
+      const active = v === view;
+      mobileBtn.classList.toggle("active", active);
+      if (active) mobileBtn.setAttribute("aria-current", "page");
+      else mobileBtn.removeAttribute("aria-current");
+    }
   });
 }
 function isMobileViewport() {
@@ -284,8 +289,8 @@ function renderGenreChips() {
     );
     chip.className =
       value === currentGenreFilter
-        ? "genre-chip px-4 py-2 bg-brand text-white text-xs font-bold rounded-full border border-brand transition-all shrink-0 snap-start"
-        : "genre-chip px-4 py-2 bg-dark-surface text-neutral-400 text-xs font-semibold rounded-full border border-dark-border hover:border-brand/40 hover:text-white transition-all shrink-0 snap-start";
+        ? "genre-chip min-h-11 px-4 py-2 bg-brand text-white text-xs font-bold rounded-full border border-brand transition-all shrink-0 snap-start"
+        : "genre-chip min-h-11 px-4 py-2 bg-dark-surface text-neutral-300 text-xs font-semibold rounded-full border border-dark-border hover:border-brand/40 hover:text-white transition-all shrink-0 snap-start";
     chip.onclick = () => filterGenre(value);
     fragment.appendChild(chip);
   });
@@ -322,6 +327,7 @@ function setupHero(data) {
     dot.type = "button";
     dot.className = "hero-dot" + (i === 0 ? " active" : "");
     dot.setAttribute("aria-label", `Tampilkan banner ke-${i + 1}`);
+    if (i === 0) dot.setAttribute("aria-current", "true");
     dot.onclick = () => goHeroSlide(i);
     dotsEl.appendChild(dot);
   });
@@ -358,7 +364,12 @@ function goHeroSlide(idx) {
   slides.forEach((slide, i) =>
     slide.classList.toggle("active", i === idx),
   );
-  dots.forEach((dot, i) => dot.classList.toggle("active", i === idx));
+  dots.forEach((dot, i) => {
+    const active = i === idx;
+    dot.classList.toggle("active", active);
+    if (active) dot.setAttribute("aria-current", "true");
+    else dot.removeAttribute("aria-current");
+  });
   heroCurrentIdx = idx;
   updateHeroContent(idx);
   if (heroFeatured.length > 1) {
@@ -415,7 +426,7 @@ function buildCardHtml(drama) {
   const playIdx = getNextPlayableIndex(drama);
   const dramaId = JSON.stringify(String(drama.id));
   const dramaTitle = JSON.stringify(titleRaw);
-  return ` <div class="poster-shell w-full aspect-[3/4] overflow-hidden bg-neutral-900 rounded-xl group"> <img src="${image}" alt="Poster ${title}" class="w-full h-full object-cover cursor-pointer" width="300" height="400" sizes="${POSTER_IMAGE_SIZES}" loading="lazy" decoding="async" fetchpriority="low" onclick='openPreviewModal(${dramaId})' onerror="this.onerror=null;this.src='${DEFAULT_POSTER}'" > <div class="poster-actions"> <button type="button" onclick='event.stopPropagation(); triggerPlayer(${dramaId}, ${playIdx})' class="poster-action-btn primary" aria-label="Putar ${title}"> <i class="fa-solid fa-play" aria-hidden="true"></i> Putar </button> <button type="button" onclick='event.stopPropagation(); openDetailPage(${dramaId})' class="poster-action-btn" aria-label="Lihat detail ${title}"> <i class="fa-solid fa-circle-info" aria-hidden="true"></i> </button> </div> <button type="button" onclick='toggleWatchlist(event, ${dramaTitle})' class="absolute top-2.5 right-2.5 w-10 h-10 rounded-xl bg-dark-bg/80 border border-dark-border flex items-center justify-center text-xs z-30" aria-label="${isFav ? "Hapus dari watchlist" : "Tambahkan ke watchlist"}: ${title}" > <i class="${favIcon}" aria-hidden="true"></i> </button> <span class="absolute bottom-2.5 left-2.5 bg-dark-bg/80 border text-[10px] font-bold text-brand px-2 py-1 rounded z-10">${epsLength} Eps</span> <span class="absolute top-2.5 left-2.5 bg-dark-bg/80 border text-[10px] font-bold text-yellow-500 px-2 py-1 rounded z-10">⭐${getUserRatingLabel(drama)}</span> </div> <div class="p-2"> <button type="button" class="text-left w-full text-xs md:text-sm font-semibold truncate text-white" onclick='openPreviewModal(${dramaId})'> ${title} </button> <div class="flex items-center justify-between mt-0.5 text-[10px] text-dark-muted"> <span class="truncate">${genre}</span> <span>${year}</span> </div> <div class="eps-progress-bar mt-1" aria-label="Progress tontonan ${progressPct}%"> <div class="eps-progress-fill" style="width:${progressPct}%"></div> </div> </div> `;
+  return ` <div class="poster-shell w-full aspect-[3/4] overflow-hidden bg-neutral-900 rounded-xl group"> <button type="button" class="block w-full h-full" onclick='openPreviewModal(${dramaId})' aria-label="Buka preview ${title}"> <img src="${image}" alt="" class="w-full h-full object-cover" width="300" height="400" sizes="${POSTER_IMAGE_SIZES}" loading="lazy" decoding="async" fetchpriority="low" onerror="this.onerror=null;this.src='${DEFAULT_POSTER}'" > </button> <div class="poster-actions"> <button type="button" onclick='event.stopPropagation(); triggerPlayer(${dramaId}, ${playIdx})' class="poster-action-btn primary" aria-label="Putar ${title}"> <i class="fa-solid fa-play" aria-hidden="true"></i> Putar </button> <button type="button" onclick='event.stopPropagation(); openDetailPage(${dramaId})' class="poster-action-btn" aria-label="Lihat detail ${title}"> <i class="fa-solid fa-circle-info" aria-hidden="true"></i> </button> </div> <button type="button" onclick='toggleWatchlist(event, ${dramaTitle})' class="absolute top-2.5 right-2.5 w-11 h-11 rounded-xl bg-dark-bg/80 border border-dark-border flex items-center justify-center text-xs z-30" aria-label="${isFav ? "Hapus dari watchlist" : "Tambahkan ke watchlist"}: ${title}" > <i class="${favIcon}" aria-hidden="true"></i> </button> <span class="absolute bottom-2.5 left-2.5 bg-dark-bg/80 border text-[10px] font-bold text-brand px-2 py-1 rounded z-10">${epsLength} Eps</span> <span class="absolute top-2.5 left-2.5 bg-dark-bg/80 border text-[10px] font-bold text-yellow-500 px-2 py-1 rounded z-10">⭐${getUserRatingLabel(drama)}</span> </div> <div class="p-2"> <button type="button" class="min-h-11 flex items-center text-left w-full text-xs md:text-sm font-semibold truncate text-white" onclick='openPreviewModal(${dramaId})'> ${title} </button> <div class="flex items-center justify-between mt-0.5 text-[10px] text-dark-muted"> <span class="truncate">${genre}</span> <span>${year}</span> </div> <div class="eps-progress-bar mt-1" role="progressbar" aria-label="Progress tontonan ${title}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progressPct}"> <div class="eps-progress-fill" style="width:${progressPct}%"></div> </div> </div> `;
 }
 function renderCards(target, items, wrapperClass) {
   if (!target) return;
@@ -680,7 +691,7 @@ function displayWatchHistory() {
     );
     const row = document.createElement("article");
     row.className = "history-text-card";
-    row.innerHTML = ` <div class="flex items-start justify-between gap-3"> <div class="min-w-0"> <h3 class="text-sm font-bold text-white truncate">${title}</h3> <p class="mt-1 text-[11px] text-neutral-400 truncate">${epsName}</p> <p class="mt-1 text-[11px] italic text-dark-muted">${formatHistoryTime(item.watchedAt)}</p> </div> <button type="button" onclick="triggerPlayer('${drama.id}', ${epsIdx})" class="play-mini text-[11px] font-bold bg-brand text-white px-3 py-2 rounded-xl shrink-0" aria-label="Putar lagi ${title}" >Putar</button> </div> `;
+    row.innerHTML = ` <div class="flex items-start justify-between gap-3"> <div class="min-w-0"> <h3 class="text-sm font-bold text-white truncate">${title}</h3> <p class="mt-1 text-[11px] text-neutral-400 truncate">${epsName}</p> <p class="mt-1 text-[11px] italic text-dark-muted">${formatHistoryTime(item.watchedAt)}</p> </div> <button type="button" onclick="triggerPlayer('${drama.id}', ${epsIdx})" class="min-h-11 play-mini text-[11px] font-bold bg-brand text-white px-3 py-2 rounded-xl shrink-0" aria-label="Putar lagi ${title}" >Putar</button> </div> `;
     fragment.appendChild(row);
   });
   DOM.historyContainer.appendChild(fragment);
@@ -734,7 +745,7 @@ function openPreviewModal(id) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className =
-      "px-3 py-1.5 bg-dark-bg border border-dark-border rounded-xl text-xs text-neutral-300";
+      "min-h-11 px-3 py-1.5 bg-dark-bg border border-dark-border rounded-xl text-xs text-neutral-300";
     btn.textContent = eps.epsName || `Episode ${idx + 1}`;
     btn.onclick = () => {
       closePreviewModal();
@@ -745,7 +756,6 @@ function openPreviewModal(id) {
   const overlay = document.getElementById("preview-modal-overlay");
   const modal = document.getElementById("preview-modal");
   overlay.classList.remove("hidden");
-  overlay.setAttribute("aria-hidden", "false");
   modal.classList.remove("hidden");
   lockBodyScroll();
   setTimeout(() => modal.focus(), 50);
@@ -764,7 +774,6 @@ function closePreviewModal() {
   const overlay = document.getElementById("preview-modal-overlay");
   const modal = document.getElementById("preview-modal");
   overlay.classList.add("hidden");
-  overlay.setAttribute("aria-hidden", "true");
   modal.classList.add("hidden");
   unlockBodyScroll();
   if (
@@ -808,7 +817,7 @@ function openDetailPage(id) {
     const row = document.createElement("div");
     row.className =
       "flex items-center justify-between p-3 bg-dark-surface rounded-xl border border-dark-border gap-3";
-    row.innerHTML = ` <div class="min-w-0"> <span class="text-xs text-white block truncate">${escapeHTML(eps.epsName || `Episode ${idx + 1}`)}</span> <span class="text-[10px] ${watched ? "text-brand" : "text-dark-muted"}">${watched ? "Sudah ditonton" : "Belum ditonton"}</span> </div> <button type="button" class="text-xs bg-brand text-white px-3 py-1 rounded-lg shrink-0" onclick="triggerPlayer('${drama.id}', ${idx})">Putar</button> `;
+    row.innerHTML = ` <div class="min-w-0"> <span class="text-xs text-white block truncate">${escapeHTML(eps.epsName || `Episode ${idx + 1}`)}</span> <span class="text-[10px] ${watched ? "text-brand" : "text-dark-muted"}">${watched ? "Sudah ditonton" : "Belum ditonton"}</span> </div> <button type="button" class="min-h-11 text-xs bg-brand text-white px-4 py-1 rounded-lg shrink-0" onclick="triggerPlayer('${drama.id}', ${idx})">Putar</button> `;
     progList.appendChild(row);
   });
   updateDetailWatchlistButton();
@@ -818,7 +827,8 @@ function openDetailPage(id) {
   setTimeout(() => detailPage.focus(), 50);
 }
 function closeDetailPage() {
-  document.getElementById("detail-page").style.display = "none";
+  const detailPage = document.getElementById("detail-page");
+  detailPage.style.display = "none";
   unlockBodyScroll();
   if (
     lastFocusedElement &&
@@ -834,11 +844,11 @@ function checkHistory() {
     last &&
     drakorDB.some((d) => String(d.id) === String(last.cloudId))
   ) {
+    const progress = Math.max(0, Math.min(100, Number(last.progress || 0)));
     bar.style.display = "flex";
     document.getElementById("continue-text").innerText =
       last.label || "Lanjutkan menonton";
-    document.getElementById("continue-progress").style.width =
-      (last.progress || 0) + "%";
+    document.getElementById("continue-progress").value = progress;
     document.getElementById("continue-btn").onclick = () =>
       triggerPlayer(last.cloudId, last.epsIdx || 0);
   } else {
@@ -1003,16 +1013,44 @@ async function fetchCloudData() {
     }
   }
 }
+
+function trapDialogFocus(event, dialog) {
+  if (event.key !== "Tab" || !dialog) return;
+  const focusable = [...dialog.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )].filter((element) => element.offsetParent !== null);
+  if (!focusable.length) {
+    event.preventDefault();
+    dialog.focus();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 document.addEventListener("keydown", function (event) {
+  const modal = document.getElementById("preview-modal");
+  const detail = document.getElementById("detail-page");
+  const search = document.getElementById("mobile-search-panel");
+  const activeDialog = !modal.classList.contains("hidden")
+    ? modal
+    : detail.style.display === "block"
+      ? detail
+      : !search.classList.contains("hidden")
+        ? search
+        : null;
+  trapDialogFocus(event, activeDialog);
   if (event.key === "Escape") {
-    const modalOpen = !document
-      .getElementById("preview-modal")
-      .classList.contains("hidden");
-    const detailOpen =
-      document.getElementById("detail-page").style.display === "block";
-    const searchOpen = !document
-      .getElementById("mobile-search-panel")
-      .classList.contains("hidden");
+    const modalOpen = !modal.classList.contains("hidden");
+    const detailOpen = detail.style.display === "block";
+    const searchOpen = !search.classList.contains("hidden");
     if (modalOpen) closePreviewModal();
     else if (detailOpen) closeDetailPage();
     else if (searchOpen) switchView("home");

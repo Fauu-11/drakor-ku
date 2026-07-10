@@ -50,11 +50,14 @@
   function setLoading(active) {
     elements.loading.classList.toggle('hidden', !active);
     elements.loading.classList.toggle('flex', active);
+    elements.videoWrapper.setAttribute('aria-busy', String(active));
   }
 
   function setSelectedRating(value) {
     elements.ratingStars.querySelectorAll('[data-rating]').forEach(button => {
-      button.classList.toggle('active', Number(button.dataset.rating) <= value);
+      const rating = Number(button.dataset.rating);
+      button.classList.toggle('active', rating <= value);
+      button.setAttribute('aria-pressed', String(rating === value));
     });
   }
 
@@ -224,10 +227,12 @@
     elements.episodeCount.textContent = `${drama.episodes.length} episode`;
     drama.episodes.forEach((episode, index) => {
       const button = document.createElement('button');
+      button.type = 'button';
       button.className = index === episodeIndex
-        ? 'rounded-xl border border-pink-500/60 bg-pink-500/15 px-3 py-3 text-xs font-bold text-pink-200'
-        : 'rounded-xl border border-white/10 bg-white/[.025] px-3 py-3 text-xs font-semibold text-white/55 hover:border-pink-500/25 hover:text-white';
+        ? 'min-h-11 rounded-xl border border-pink-500/60 bg-pink-500/15 px-3 py-3 text-xs font-bold text-pink-200'
+        : 'min-h-11 rounded-xl border border-white/10 bg-white/[.025] px-3 py-3 text-xs font-semibold text-white/75 hover:border-pink-500/25 hover:text-white';
       button.textContent = episode.epsName || `Episode ${index + 1}`;
+      if (index === episodeIndex) button.setAttribute('aria-current', 'true');
       button.onclick = () => selectEpisode(index);
       elements.episodeList.appendChild(button);
     });
@@ -284,7 +289,7 @@
     elements.historyList.innerHTML = '';
     if (!historyItems.length) {
       const empty = document.createElement('p');
-      empty.className = 'p-5 text-xs text-white/40';
+      empty.className = 'p-5 text-xs text-white/70';
       empty.textContent = 'Belum ada riwayat tontonan.';
       elements.historyList.appendChild(empty);
       return;
@@ -298,7 +303,7 @@
       title.className = 'text-xs font-semibold leading-5 text-white/75';
       title.textContent = `${item.title} — ${item.episode}`;
       const time = document.createElement('p');
-      time.className = 'mt-1 text-[10px] italic text-white/35';
+      time.className = 'mt-1 text-[10px] italic text-white/70';
       time.textContent = relativeTime(item.watchedAt);
       link.append(title, time);
       elements.historyList.appendChild(link);
@@ -375,7 +380,7 @@
     elements.commentList.innerHTML = '';
     if (!comments.length) {
       const empty = document.createElement('p');
-      empty.className = 'rounded-2xl border border-dashed border-white/10 p-5 text-sm text-white/40';
+      empty.className = 'rounded-2xl border border-dashed border-white/10 p-5 text-sm text-white/70';
       empty.textContent = 'Belum ada komentar. Jadilah yang pertama.';
       elements.commentList.appendChild(empty);
       return;
@@ -390,7 +395,7 @@
       name.className = 'text-xs text-pink-300';
       name.textContent = comment.name || 'Pengguna';
       const time = document.createElement('span');
-      time.className = 'text-[10px] text-white/35';
+      time.className = 'text-[10px] text-white/70';
       time.textContent = relativeTime(comment.created_at);
       const text = document.createElement('p');
       text.className = 'mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-white/65';
@@ -585,7 +590,12 @@
     elements.watchLayout.classList.toggle('lg:grid-cols-[minmax(0,1fr)_360px]');
     elements.watchLayout.classList.toggle('lg:grid-cols-1');
     const icon = elements.theaterButton.querySelector('i');
-    icon.className = elements.watchLayout.classList.contains('lg:grid-cols-1') ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+    const theaterActive = elements.watchLayout.classList.contains('lg:grid-cols-1');
+    icon.className = theaterActive ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+    elements.theaterButton.setAttribute(
+      'aria-label',
+      theaterActive ? 'Keluar dari mode bioskop' : 'Aktifkan mode bioskop'
+    );
   });
   window.addEventListener('beforeunload', savePosition);
   document.addEventListener('visibilitychange', () => {
