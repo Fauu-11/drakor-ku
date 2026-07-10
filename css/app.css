@@ -23,6 +23,15 @@ body {
 
 button, input, select, textarea { font: inherit; }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(255, 42, 116, 0.7);
+  outline-offset: 3px;
+}
+
 .glass {
   background: rgba(2, 2, 5, 0.78);
   backdrop-filter: blur(20px);
@@ -353,7 +362,12 @@ button, input, select, textarea { font: inherit; }
 .no-scrollbar { scrollbar-width: none; }
 
 .rating-star {
-  color: #475569;
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
   transition: color .16s ease, transform .16s ease;
 }
 

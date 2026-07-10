@@ -67,12 +67,16 @@ body::before {
 }
 button,
 a,
-input {
+input,
+select,
+textarea {
   touch-action: manipulation;
 }
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
   outline: 3px solid rgba(255, 42, 116, 0.55);
   outline-offset: 3px;
 }
@@ -292,7 +296,7 @@ input:focus-visible {
   border-radius: 12px;
   font-size: 10px;
   font-weight: 600;
-  color: #64748b;
+  color: #94a3b8;
   transition:
     color 0.2s,
     background 0.2s;
@@ -300,6 +304,7 @@ input:focus-visible {
   border: none;
   cursor: pointer;
   width: 25%;
+  min-height: 48px;
 }
 .bottom-nav-btn.active {
   color: #ff2a74;
@@ -369,26 +374,27 @@ input:focus-visible {
   background: rgba(255, 255, 255, 0.16);
 }
 .hero-dot {
-  height: 7px;
-  width: 7px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.36);
+  height: 48px;
+  width: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: transparent;
   position: relative;
-  transition: all 0.3s;
   cursor: pointer;
   border: none;
 }
-.hero-dot::after {
+.hero-dot::before {
   content: "";
-  position: absolute;
-  top: -12px;
-  right: -12px;
-  bottom: -12px;
-  left: -12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  transition: width 0.3s, background 0.3s;
 }
-.hero-dot.active {
+.hero-dot.active::before {
   width: 28px;
-  border-radius: 10px;
   background: linear-gradient(90deg, #ff2a74, #22d3ee);
 }
 #genre-chips-row {
@@ -467,8 +473,8 @@ input:focus-visible {
   pointer-events: auto;
 }
 .poster-action-btn {
-  min-height: 38px;
-  min-width: 38px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 12px;
   border-radius: 12px;
   background: rgba(2, 2, 5, 0.82);
@@ -500,6 +506,26 @@ input:focus-visible {
   background: linear-gradient(90deg, #ff2a74, #22d3ee);
   border-radius: 2px;
   transition: width 0.3s;
+}
+.continue-progress {
+  display: block;
+  height: 3px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 2px;
+  background: #1f1f2e;
+  appearance: none;
+}
+.continue-progress::-webkit-progress-bar {
+  background: #1f1f2e;
+}
+.continue-progress::-webkit-progress-value {
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ff2a74, #22d3ee);
+}
+.continue-progress::-moz-progress-bar {
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ff2a74, #22d3ee);
 }
 #detail-page {
   display: none;
@@ -667,8 +693,8 @@ input:focus-visible {
     pointer-events: auto;
   }
   .poster-action-btn {
-    height: 34px;
-    min-width: 34px;
+    height: 44px;
+    min-width: 44px;
     font-size: 10px;
   }
   .hero-slide.active img,
