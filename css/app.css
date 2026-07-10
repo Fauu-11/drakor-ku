@@ -376,12 +376,60 @@ button, input, select, textarea { font: inherit; }
   background: #000;
 }
 
-.plyr { border-radius: 25px; }
-.plyr__control--overlaid {
+#video-wrapper.shaka-video-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 25px;
+  background: #000;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+#video-wrapper.shaka-video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.shaka-controls-container {
+  border-radius: 25px;
+}
+
+.shaka-big-buttons-container .shaka-play-button {
   width: 68px !important;
   height: 68px !important;
+  padding: 18px !important;
+  border-radius: 999px !important;
   background: linear-gradient(135deg, #ff2a74, #e11d62) !important;
-  box-shadow: 0 16px 40px rgba(255,42,116,.38);
+  box-shadow: 0 16px 40px rgba(255,42,116,.38) !important;
+}
+
+.shaka-controls-button-panel {
+  padding: 0 10px 8px !important;
+}
+
+.shaka-controls-button-panel button,
+.shaka-controls-button-panel span {
+  color: rgba(255,255,255,.94) !important;
+}
+
+.shaka-overflow-menu,
+.shaka-settings-menu {
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px !important;
+  background: rgba(13,13,22,.98) !important;
+  box-shadow: 0 20px 55px rgba(0,0,0,.5) !important;
+}
+
+.shaka-overflow-menu button,
+.shaka-settings-menu button {
+  color: rgba(255,255,255,.82) !important;
+}
+
+.shaka-overflow-menu button:hover,
+.shaka-settings-menu button:hover {
+  background: rgba(255,42,116,.13) !important;
 }
 
 .status-dot {
@@ -393,7 +441,18 @@ button, input, select, textarea { font: inherit; }
 
 @media (max-width: 640px) {
   .card:hover { transform: none; }
-  .plyr__control--overlaid { width: 56px !important; height: 56px !important; }
+  .shaka-big-buttons-container .shaka-play-button {
+    width: 56px !important;
+    height: 56px !important;
+    padding: 14px !important;
+  }
+  .shaka-controls-button-panel {
+    padding: 0 4px 5px !important;
+  }
+  .shaka-controls-button-panel .shaka-volume-bar-container,
+  .shaka-controls-button-panel .shaka-volume-button {
+    display: none !important;
+  }
   .poster-card:hover .poster-thumb img { transform: none; }
   .admin-content-card > div:first-child {
     align-items: flex-start;
