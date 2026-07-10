@@ -5,7 +5,7 @@ K STREAM adalah website streaming statis dengan katalog Supabase, player modern,
 ## Fitur
 
 - Homepage gelap sesuai referensi: hero, pencarian, kategori genre, lanjut menonton, dan kartu koleksi
-- Shaka Player dengan adaptive quality untuk HLS/MPEG-DASH, plus MP4, Abyssplayer, dan YouTube
+- Player ringan dengan dukungan MP4 native, Abyssplayer, dan YouTube
 - Rating pengguna 1-5, komentar, history, serta resume posisi video
 - Panel admin untuk CRUD judul dan episode
 - Fallback lokal saat tabel atau izin Supabase belum siap

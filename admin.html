@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -38,6 +39,13 @@
         .admin-input:focus { border-color: #ff2a74; box-shadow: 0 0 0 3px rgba(255,42,116,0.12); }
         .tool-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 0.75rem; border: 1px solid #1f1f35; background: #06060f; color: #cbd5e1; padding: 0.65rem 0.8rem; font-size: 0.75rem; font-weight: 700; transition: all 0.2s; }
         .tool-btn:hover { border-color: rgba(255,42,116,0.45); color: #fff; }
+        .upload-mode-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 48px; border-radius: 0.9rem; color: #94a3b8; font-size: 0.85rem; font-weight: 800; transition: all 0.2s; }
+        .upload-mode-btn:hover { color: #fff; background: rgba(255,255,255,0.035); }
+        .upload-mode-btn.active { color: #fff; background: linear-gradient(135deg, rgba(255,42,116,0.28), rgba(255,42,116,0.12)); border: 1px solid rgba(255,42,116,0.45); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+        .genre-picker { display: flex; flex-wrap: wrap; gap: 0.45rem; border: 1px solid #1f1f35; border-radius: 1rem; background: #06060f; padding: 0.65rem; }
+        .genre-chip-btn { min-height: 36px; border: 1px solid rgba(148,163,184,0.16); border-radius: 999px; padding: 0.45rem 0.75rem; color: #94a3b8; font-size: 0.72rem; font-weight: 800; transition: all 0.18s; }
+        .genre-chip-btn:hover { color: #fff; border-color: rgba(255,42,116,0.35); }
+        .genre-chip-btn.active { color: #fff; background: rgba(255,42,116,0.18); border-color: rgba(255,42,116,0.6); }
         .poster-preview { aspect-ratio: 3/4; width: 74px; border-radius: 0.85rem; object-fit: cover; border: 1px solid #1f1f35; background: #06060f; }
         .dirty-dot { display: inline-flex; width: 8px; height: 8px; border-radius: 999px; background: #eab308; box-shadow: 0 0 0 4px rgba(234,179,8,0.1); }
         .manager-card { border: 1px solid #1f1f35; border-radius: 1rem; background: #06060f; overflow: hidden; }
@@ -119,8 +127,19 @@
             </div>
         </section>
 
+        <div class="mb-4 grid grid-cols-2 gap-3 rounded-2xl border border-dark-border bg-dark-surface p-2">
+            <button id="mode-single-btn" type="button" class="upload-mode-btn active" aria-pressed="true">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Upload 1:1</span>
+            </button>
+            <button id="mode-fast-btn" type="button" class="upload-mode-btn" aria-pressed="false">
+                <i class="fa-solid fa-bolt"></i>
+                <span>Upload Fast</span>
+            </button>
+        </div>
+
         <!-- FORM INPUT -->
-        <section class="bg-dark-surface border border-dark-border rounded-3xl p-5 md:p-8 mb-8">
+        <section id="single-upload-section" class="bg-dark-surface border border-dark-border rounded-3xl p-5 md:p-8 mb-8">
             <div class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-dark-border">
                 <div>
                     <h2 class="text-lg font-bold" id="form-mode-title">Injeksi Basis Data Cloud</h2>
@@ -152,7 +171,9 @@
                 </div>
                 <div class="space-y-1">
                     <label class="text-xs font-semibold text-neutral-300">Kategori Genre</label>
-                    <input id="genre" type="text" value="Drama" placeholder="Contoh: Romance, Comedy, Drama" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                    <input id="genre" type="hidden" value="Drama">
+                    <div id="genre-options" class="genre-picker" role="group" aria-label="Pilih genre"></div>
+                    <p id="genre-summary" class="text-[10px] text-dark-muted">Terpilih: Drama</p>
                 </div>
                 <div class="space-y-1">
                     <label class="text-xs font-semibold text-neutral-300">Tahun Rilis</label>
@@ -171,12 +192,60 @@
                 </div>
                 <div class="space-y-1 md:col-span-2">
                     <label class="text-xs font-semibold text-neutral-300">Kode / URL Video</label>
-                    <input type="text" id="video-url" placeholder="Masukkan link video player" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                    <input type="text" id="video-url" placeholder="Kode Abyssplayer, URL MP4, atau YouTube" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                    <p class="text-[10px] text-dark-muted">Kode tanpa https:// akan diperlakukan sebagai kode Abyssplayer. URL lengkap MP4 dan YouTube tetap didukung.</p>
                 </div>
                 <button type="submit" id="submit-btn" class="md:col-span-2 bg-brand text-white font-bold py-3.5 rounded-xl hover:bg-brand-hover transition-all flex justify-center items-center gap-2">
                     <span id="submit-btn-text">Suntikkan Data Ke Supabase Cloud</span>
                 </button>
             </form>
+        </section>
+
+        <section id="fast-upload-section" class="hidden bg-dark-surface border border-dark-border rounded-3xl p-5 md:p-6 mb-8">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-bold"><i class="fa-solid fa-images text-brand mr-2"></i>Upload Cepat dari Screenshot Abyss</h2>
+                    <p class="mt-1 text-[11px] text-dark-muted">Untuk format folder seperti: Name, Size, Slug. Size diabaikan, episode diambil dari E01/E02, dan slug otomatis menjadi link Abyss.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 admin-actions">
+                    <label class="tool-btn cursor-pointer" for="bulk-screenshot-input"><i class="fa-solid fa-image"></i> Pilih SS</label>
+                    <button id="bulk-ocr-btn" type="button" class="tool-btn" disabled><i class="fa-solid fa-eye"></i> Baca Screenshot</button>
+                    <button id="bulk-preview-btn" type="button" class="tool-btn"><i class="fa-solid fa-list-check"></i> Preview</button>
+                    <button id="bulk-import-btn" type="button" class="tool-btn bg-brand/15 text-brand border-brand/30" disabled><i class="fa-solid fa-cloud-arrow-up"></i> Import Semua</button>
+                </div>
+            </div>
+
+            <input id="bulk-screenshot-input" type="file" accept="image/*" class="hidden">
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">Judul Hasil Screenshot</label>
+                    <input id="bulk-title" type="text" placeholder="Otomatis dari nama file, bisa diedit" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">Tahun Rilis</label>
+                    <input id="bulk-year" type="number" placeholder="Opsional, contoh: 2026" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">Genre</label>
+                    <input id="bulk-genre" type="hidden">
+                    <div id="bulk-genre-options" class="genre-picker" role="group" aria-label="Pilih genre upload cepat"></div>
+                    <p id="bulk-genre-summary" class="text-[10px] text-dark-muted">Opsional, bisa dikosongkan.</p>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-neutral-300">URL Gambar Poster</label>
+                    <div class="flex gap-3">
+                        <input type="url" id="image-url" placeholder="https://domain.com/poster.jpg" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white">
+                        <img id="poster-preview" class="poster-preview hidden" alt="Preview poster">
+                    </div>
+                </div>
+                <div class="space-y-1 md:col-span-2">
+                    <label class="text-xs font-semibold text-neutral-300">Sinopsis</label>
+                    <textarea id="bulk-synopsis" rows="2" placeholder="Opsional, bisa diedit nanti" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand text-white resize-none"></textarea>
+                </div>
+            </div>
+            <div id="bulk-ocr-status" class="mt-3 hidden rounded-xl border border-dark-border bg-black/20 p-3 text-xs text-dark-muted"></div>
+            <textarea id="bulk-manager-input" rows="5" placeholder="Hasil OCR/paste: Serendipitys_Embrace_E01.mp4 98.64 MB 2NH5MLH8O" class="mt-3 w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-brand text-white resize-y"></textarea>
+            <div id="bulk-preview" class="mt-3 hidden rounded-xl border border-dark-border bg-black/20 p-3 text-xs text-dark-muted"></div>
         </section>
 
         <!-- EDITOR ACCORDION -->
@@ -230,18 +299,107 @@
     } catch(err) { console.error("Supabase init gagal:", err); }
 
     let drakorDB = [];
+    let bulkImportEpisodes = [];
     const editorStack = document.getElementById('advanced-editor-stack');
     const ADMIN_DRAFT_KEY = 'kstream_admin_form_draft';
     const DEFAULT_POSTER = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=400&fit=crop";
+    const GENRE_OPTIONS = [
+        'Drama', 'Movie', 'Series', 'Romance', 'Action', 'Thriller', 'Comedy', 'Fantasy',
+        'Mystery', 'Crime', 'Horror', 'Historical', 'Medical', 'School', 'Family',
+        'Slice of Life', 'Sci-Fi', 'Supernatural', 'Legal', 'Political', 'Youth',
+        'Melodrama', 'Adventure', 'Animation', 'Documentary', 'Music', 'War', 'Sports'
+    ];
+
+    function escapeHTML(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
 
     function showToast(message, type = 'info', duration = 3000) {
         const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
-        toast.innerHTML = `<div class="toast-icon"><i class="fa-solid ${icons[type] || icons.info}"></i></div><span>${message}</span>`;
+        const iconWrap = document.createElement('div');
+        iconWrap.className = 'toast-icon';
+        const icon = document.createElement('i');
+        icon.className = `fa-solid ${icons[type] || icons.info}`;
+        const text = document.createElement('span');
+        text.textContent = message;
+        iconWrap.appendChild(icon);
+        toast.append(iconWrap, text);
         container.appendChild(toast);
         setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+    }
+
+    function setUploadMode(mode) {
+        const isFast = mode === 'fast';
+        const singleSection = document.getElementById('single-upload-section');
+        const fastSection = document.getElementById('fast-upload-section');
+        const singleBtn = document.getElementById('mode-single-btn');
+        const fastBtn = document.getElementById('mode-fast-btn');
+
+        singleSection.classList.toggle('hidden', isFast);
+        fastSection.classList.toggle('hidden', !isFast);
+        singleBtn.classList.toggle('active', !isFast);
+        fastBtn.classList.toggle('active', isFast);
+        singleBtn.setAttribute('aria-pressed', String(!isFast));
+        fastBtn.setAttribute('aria-pressed', String(isFast));
+    }
+
+    function parseGenreList(value) {
+        return String(value || '')
+            .split(/[,/|]/)
+            .map(item => item.trim())
+            .filter(Boolean);
+    }
+
+    function updateGenrePicker(inputId, optionsId, summaryId) {
+        const selected = new Set(parseGenreList(document.getElementById(inputId).value));
+        document.querySelectorAll(`#${optionsId} [data-genre]`).forEach(button => {
+            const active = selected.has(button.dataset.genre);
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', String(active));
+        });
+
+        const summary = document.getElementById(summaryId);
+        const value = [...selected].join(', ');
+        summary.textContent = value ? `Terpilih: ${value}` : 'Opsional, bisa dikosongkan.';
+    }
+
+    function setSelectedGenres(inputId, optionsId, summaryId, value, { silent = false } = {}) {
+        const selected = parseGenreList(value);
+        document.getElementById(inputId).value = selected.join(', ');
+        updateGenrePicker(inputId, optionsId, summaryId);
+        if (!silent && inputId === 'genre') saveAdminDraft();
+    }
+
+    function toggleGenre(inputId, optionsId, summaryId, genre) {
+        const selected = new Set(parseGenreList(document.getElementById(inputId).value));
+        if (selected.has(genre)) selected.delete(genre);
+        else selected.add(genre);
+        setSelectedGenres(inputId, optionsId, summaryId, [...selected].join(', '));
+    }
+
+    function renderGenrePicker(inputId, optionsId, summaryId) {
+        const container = document.getElementById(optionsId);
+        container.innerHTML = '';
+        GENRE_OPTIONS.forEach(genre => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'genre-chip-btn';
+            button.dataset.genre = genre;
+            button.textContent = genre;
+            button.setAttribute('aria-pressed', 'false');
+            button.addEventListener('click', () => toggleGenre(inputId, optionsId, summaryId, genre));
+            container.appendChild(button);
+        });
+        updateGenrePicker(inputId, optionsId, summaryId);
     }
 
     function checkGateLogin() {
@@ -321,7 +479,7 @@
         const matchDrama = drakorDB.find(d => d.title.toLowerCase() === currentInput);
 
         if (matchDrama) {
-            document.getElementById('genre').value = matchDrama.genre || 'Romance';
+            setSelectedGenres('genre', 'genre-options', 'genre-summary', matchDrama.genre || 'Romance', { silent: true });
             document.getElementById('year').value = matchDrama.year || '';
             document.getElementById('image-url').value = matchDrama.image || '';
             document.getElementById('synopsis').value = matchDrama.synopsis || '';
@@ -353,7 +511,7 @@
         if (!draft) return;
         document.getElementById('title').value = draft.title || '';
         document.getElementById('episode').value = draft.episode || '';
-        document.getElementById('genre').value = draft.genre || 'Romance';
+        setSelectedGenres('genre', 'genre-options', 'genre-summary', draft.genre || 'Romance', { silent: true });
         document.getElementById('year').value = draft.year || '';
         document.getElementById('image-url').value = draft.image || '';
         document.getElementById('synopsis').value = draft.synopsis || '';
@@ -432,7 +590,7 @@
         }
     }
 
-    ['title','episode','genre','year','image-url','synopsis','video-url'].forEach(id => {
+    ['title','episode','year','image-url','synopsis','video-url'].forEach(id => {
         const el = document.getElementById(id);
         el.addEventListener('input', () => {
             if (id === 'image-url') updatePosterPreview();
@@ -446,6 +604,11 @@
     });
 
     updateDraftControls();
+    renderGenrePicker('genre', 'genre-options', 'genre-summary');
+    renderGenrePicker('bulk-genre', 'bulk-genre-options', 'bulk-genre-summary');
+    document.getElementById('mode-single-btn').addEventListener('click', () => setUploadMode('single'));
+    document.getElementById('mode-fast-btn').addEventListener('click', () => setUploadMode('fast'));
+    setUploadMode('single');
 
     document.addEventListener('keydown', (event) => {
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
@@ -463,6 +626,438 @@
         if (/^https?:\/\//i.test(value)) return value;
         return 'https://abyssplayer.com/' + value.replace(/^\/+/, '');
     }
+
+    function titleFromSlug(value) {
+        const smallWords = new Set(['a', 'an', 'and', 'as', 'at', 'by', 'for', 'from', 'in', 'of', 'on', 'or', 'the', 'to', 'with']);
+        return String(value || '')
+            .replace(/[-_]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .split(' ')
+            .map((word, index) => {
+                const lower = word.toLowerCase();
+                if (index > 0 && smallWords.has(lower)) return lower;
+                return lower.charAt(0).toUpperCase() + lower.slice(1);
+            })
+            .join(' ');
+    }
+
+    function extractAbyssSlug(line, matchedFilename = '') {
+        const urlMatch = String(line).match(/abyssplayer\.com\/([A-Za-z0-9_-]+)/i);
+        if (urlMatch) return urlMatch[1];
+
+        const tail = matchedFilename ? String(line).slice(String(line).indexOf(matchedFilename) + matchedFilename.length) : String(line);
+        const tokens = tail.split(/\s+/).map(token => token.trim()).filter(Boolean);
+        return tokens.find(token =>
+            /^[A-Za-z0-9_-]{6,}$/.test(token) &&
+            !/^(ready|created|updated|status|action|mhd|hd|mb|gb)$/i.test(token) &&
+            !/^\d+(?:\.\d+)?$/.test(token)
+        ) || '';
+    }
+
+    function normalizeEpisodeNumber(value) {
+        const normalized = String(value || '')
+            .replace(/[Oo]/g, '0')
+            .replace(/[Il]/g, '1');
+        return Number.parseInt(normalized, 10);
+    }
+
+    function extractFilenameParts(line) {
+        const withYear = String(line).match(/((?:drakor\.id\.)?(?:\d+p\.)?(.+?)-(19\d{2}|20\d{2})-episode-(\d+)(?:-([a-z0-9-]+))?\.mp4(?:\.mp4)?)/i);
+        const withoutYear = String(line).match(/((?:drakor\.id\.)?(?:\d+p\.)?(.+?)-episode-(\d+)(?:-([a-z0-9-]+))?\.mp4(?:\.mp4)?)/i);
+        const abyssManager = String(line).match(/(([A-Za-z0-9][A-Za-z0-9_-]*?)[_-]E(?:P)?([0-9OoIl]{1,3})(?:[_-]([A-Za-z0-9_-]+))?\.mp4(?:\.mp4)?)/i);
+        const match = withYear || withoutYear || abyssManager;
+        if (!match) return null;
+
+        if (abyssManager) {
+            const episodeNumber = normalizeEpisodeNumber(match[3]);
+            if (!Number.isFinite(episodeNumber)) return null;
+            return {
+                filename: match[1],
+                titleSlug: match[2],
+                year: '',
+                episodeNumber,
+                episodeSuffix: String(match[4] || '').replace(/[-_]+/g, ' ').trim()
+            };
+        }
+
+        return {
+            filename: match[1],
+            titleSlug: match[2],
+            year: withYear ? match[3] : '',
+            episodeNumber: normalizeEpisodeNumber(withYear ? match[4] : match[3]),
+            episodeSuffix: String(withYear ? (match[5] || '') : (match[4] || '')).replace(/-/g, ' ').trim()
+        };
+    }
+
+    function collectLooseAbyssSlugs(rawText, usedSlugs = new Set()) {
+        const noiseWords = new Set([
+            'name', 'size', 'slug', 'resolutions', 'created', 'updated', 'status', 'action', 'ready', 'mhd', 'hd', 'root',
+            'back', 'old', 'dashboard', 'manager', 'folder', 'upload', 'remote', 'analytics', 'player', 'bandwidth',
+            'custom', 'domains', 'profile', 'support', 'document', 'logout', 'daily', 'quota', 'filter', 'all'
+        ]);
+        const textWithoutFilenames = String(rawText || '')
+            .replace(/(?:drakor\.id\.)?(?:\d+p\.)?.+?-episode-\d+(?:-[a-z0-9-]+)?\.mp4(?:\.mp4)?/gi, ' ')
+            .replace(/[A-Za-z0-9][A-Za-z0-9_-]*?[_-]E(?:P)?[0-9OoIl]{1,3}(?:[_-][A-Za-z0-9_-]+)?\.mp4(?:\.mp4)?/gi, ' ');
+
+        return [...textWithoutFilenames.matchAll(/(^|[^A-Za-z0-9_-])([A-Za-z0-9_-]{6,})(?=$|[^A-Za-z0-9_-])/g)]
+            .map(match => match[2])
+            .filter(token => {
+                const lower = token.toLowerCase();
+                return !usedSlugs.has(token) &&
+                    !noiseWords.has(lower) &&
+                    !/^\d+(?:\.\d+)?$/.test(token) &&
+                    !/^[A-Z][a-z]+$/.test(token) &&
+                    !/(episode|drakor|lesson|created|updated|dashboard|manager)/i.test(token);
+            });
+    }
+
+    function describeSkippedLine(line, rowNumber) {
+        const value = String(line || '').trim();
+        if (!value) return null;
+
+        if (/^(name|size|slug|status|action|created|updated|ready|mhd|hd)$/i.test(value)) {
+            return null;
+        }
+
+        if (!/\.mp4|abyssplayer/i.test(value)) {
+            return null;
+        }
+
+        if (!/\.mp4/i.test(value) && /abyssplayer/i.test(value)) {
+            return `Baris ${rowNumber}: ada link/slug Abyss, tapi nama file episode tidak ikut terbaca.`;
+        }
+
+        if (/\.mp4/i.test(value) && !/[_-]E(?:P)?[0-9OoIl]{1,3}|episode-\d+/i.test(value)) {
+            return `Baris ${rowNumber}: nama file terbaca, tapi pola episode tidak cocok. Gunakan contoh Serendipitys_Embrace_E01.mp4.`;
+        }
+
+        if (/\.mp4/i.test(value) && !/\b[A-Za-z0-9_-]{6,}\b/.test(value.replace(/.*?\.mp4(?:\.mp4)?/i, ''))) {
+            return `Baris ${rowNumber}: episode terbaca, tapi kolom slug kosong atau tidak ikut terbaca.`;
+        }
+
+        if (extractFilenameParts(value) && extractAbyssSlug(value, extractFilenameParts(value).filename)) {
+            return null;
+        }
+
+        return `Baris ${rowNumber}: format tidak dikenali oleh parser.`;
+    }
+
+    function parseManagerRows(rawText) {
+        const rows = String(rawText || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const episodes = [];
+        const skipped = [];
+        let detectedTitle = '';
+        let detectedYear = '';
+
+        const pendingWithoutSlug = [];
+        const usedSlugs = new Set();
+
+        rows.forEach((line, index) => {
+            const parts = extractFilenameParts(line);
+
+            if (!parts) {
+                const reason = describeSkippedLine(line, index + 1);
+                if (reason) skipped.push({ reason, source: line });
+                return;
+            }
+
+            const slug = extractAbyssSlug(line, parts.filename);
+
+            if (!slug) {
+                pendingWithoutSlug.push({ ...parts, source: line, rowNumber: index + 1 });
+                return;
+            }
+
+            usedSlugs.add(slug);
+            if (!detectedTitle) detectedTitle = titleFromSlug(parts.titleSlug.replace(/^(?:drakor\.id\.)?(?:\d+p\.)?/i, ''));
+            if (!detectedYear && parts.year) detectedYear = parts.year;
+
+            const label = `Episode ${String(parts.episodeNumber).padStart(2, '0')}${parts.episodeSuffix ? ` ${titleFromSlug(parts.episodeSuffix)}` : ''}`;
+            episodes.push({
+                epsName: label,
+                videoUrl: formatAbyssUrl(slug),
+                linkStatus: 'Unchecked',
+                episodeNumber: parts.episodeNumber
+            });
+        });
+
+        if (pendingWithoutSlug.length) {
+            const looseSlugs = collectLooseAbyssSlugs(rawText, usedSlugs);
+            pendingWithoutSlug
+                .sort((a, b) => a.episodeNumber - b.episodeNumber)
+                .forEach((parts, index) => {
+                    const slug = looseSlugs[index];
+                    if (!slug) {
+                        skipped.push({
+                            reason: `Episode ${parts.episodeNumber}: nama file terbaca, tapi slug Abyss tidak ditemukan.`,
+                            source: parts.source || `Baris ${parts.rowNumber || '-'}`
+                        });
+                        return;
+                    }
+                    if (!detectedTitle) detectedTitle = titleFromSlug(parts.titleSlug.replace(/^(?:drakor\.id\.)?(?:\d+p\.)?/i, ''));
+                    if (!detectedYear && parts.year) detectedYear = parts.year;
+                    const label = `Episode ${String(parts.episodeNumber).padStart(2, '0')}${parts.episodeSuffix ? ` ${titleFromSlug(parts.episodeSuffix)}` : ''}`;
+                    episodes.push({
+                        epsName: label,
+                        videoUrl: formatAbyssUrl(slug),
+                        linkStatus: 'Unchecked',
+                        episodeNumber: parts.episodeNumber
+                    });
+                });
+        }
+
+        const unique = new Map();
+        episodes.forEach(episode => {
+            const key = episode.epsName.toLowerCase();
+            if (unique.has(key)) {
+                skipped.push({
+                    reason: `${episode.epsName}: duplikat, hanya URL terakhir yang dipakai.`,
+                    source: episode.videoUrl
+                });
+            }
+            unique.set(key, episode);
+        });
+
+        return {
+            title: detectedTitle,
+            year: detectedYear,
+            episodes: [...unique.values()].sort((a, b) => a.episodeNumber - b.episodeNumber),
+            skipped
+        };
+    }
+
+    function setOcrStatus(message, percent = 0) {
+        const status = document.getElementById('bulk-ocr-status');
+        const bounded = Math.max(0, Math.min(100, Math.round(percent)));
+        status.classList.remove('hidden');
+        status.innerHTML = `
+            <div class="flex items-center justify-between gap-3">
+                <span>${escapeHTML(message)}</span>
+                <span class="font-bold text-brand">${bounded}%</span>
+            </div>
+            <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div class="h-full rounded-full bg-brand transition-all" style="width:${bounded}%"></div>
+            </div>
+        `;
+    }
+
+    async function preprocessOcrImage(file) {
+        const bitmap = await createImageBitmap(file);
+        const scale = bitmap.width < 1800 ? 2 : 1.35;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bitmap.width * scale);
+        canvas.height = Math.round(bitmap.height * scale);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        let total = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            total += (data[i] + data[i + 1] + data[i + 2]) / 3;
+        }
+        const shouldInvert = total / (data.length / 4) < 128;
+
+        for (let i = 0; i < data.length; i += 4) {
+            let gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+            if (shouldInvert) gray = 255 - gray;
+            const value = gray > 142 ? 255 : 0;
+            data[i] = value;
+            data[i + 1] = value;
+            data[i + 2] = value;
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        return new Promise(resolve => canvas.toBlob(blob => resolve(blob || file), 'image/png'));
+    }
+
+    async function readBulkScreenshot() {
+        const file = document.getElementById('bulk-screenshot-input').files?.[0];
+        if (!file) {
+            showToast('Pilih screenshot folder Abyss dulu.', 'warning');
+            return;
+        }
+        if (!window.Tesseract?.recognize) {
+            showToast('Library OCR belum termuat. Coba refresh halaman admin.', 'error');
+            return;
+        }
+
+        const ocrBtn = document.getElementById('bulk-ocr-btn');
+        ocrBtn.disabled = true;
+        ocrBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membaca...';
+        setOcrStatus('Menyiapkan gambar untuk OCR...', 5);
+
+        try {
+            const image = await preprocessOcrImage(file);
+            const result = await Tesseract.recognize(image, 'eng', {
+                logger: event => {
+                    if (event.status === 'recognizing text') {
+                        setOcrStatus('Membaca teks screenshot...', event.progress * 100);
+                    } else if (event.status) {
+                        setOcrStatus(event.status, 12);
+                    }
+                }
+            });
+            const text = result?.data?.text || '';
+            document.getElementById('bulk-manager-input').value = text.trim();
+            renderBulkPreview();
+            setOcrStatus(`OCR selesai. ${bulkImportEpisodes.length} episode terbaca.`, 100);
+            showToast('Screenshot berhasil dibaca.', 'success');
+        } catch (error) {
+            console.error(error);
+            setOcrStatus('OCR gagal. Coba screenshot yang lebih jelas atau paste teks manual.', 0);
+            showToast('OCR screenshot gagal.', 'error');
+        } finally {
+            ocrBtn.disabled = false;
+            ocrBtn.innerHTML = '<i class="fa-solid fa-eye"></i> Baca Screenshot';
+        }
+    }
+
+    function renderBulkPreview() {
+        const preview = document.getElementById('bulk-preview');
+        const importBtn = document.getElementById('bulk-import-btn');
+        const parsed = parseManagerRows(document.getElementById('bulk-manager-input').value);
+        bulkImportEpisodes = parsed.episodes;
+
+        if (parsed.title) {
+            const bulkTitle = document.getElementById('bulk-title');
+            if (!bulkTitle.value.trim()) bulkTitle.value = parsed.title;
+        }
+        if (parsed.year && !document.getElementById('bulk-year').value.trim()) document.getElementById('bulk-year').value = parsed.year;
+
+        importBtn.disabled = !bulkImportEpisodes.length;
+        preview.classList.remove('hidden');
+
+        if (!bulkImportEpisodes.length) {
+            preview.innerHTML = `<div class="text-amber-300">Belum ada episode yang bisa dibaca. Pastikan baris punya nama file dan slug.</div>`;
+            return;
+        }
+
+        const list = bulkImportEpisodes.slice(0, 12).map(item => `
+            <li class="flex items-center justify-between gap-3 border-b border-white/5 py-1.5">
+                <span class="text-white">${escapeHTML(item.epsName)}</span>
+                <span class="max-w-[55%] truncate text-brand">${escapeHTML(item.videoUrl)}</span>
+            </li>
+        `).join('');
+        const more = bulkImportEpisodes.length > 12 ? `<p class="mt-2 text-dark-muted">+${bulkImportEpisodes.length - 12} episode lainnya</p>` : '';
+        const skipped = parsed.skipped.length ? `
+            <details class="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-amber-200" open>
+                <summary class="cursor-pointer font-bold">${parsed.skipped.length} item dilewati - lihat alasan</summary>
+                <ul class="mt-2 space-y-2">
+                    ${parsed.skipped.slice(0, 8).map(item => `
+                        <li>
+                            <p class="font-semibold">${escapeHTML(item.reason || String(item))}</p>
+                            ${item.source ? `<p class="mt-0.5 truncate text-[11px] text-amber-100/70">${escapeHTML(item.source)}</p>` : ''}
+                        </li>
+                    `).join('')}
+                </ul>
+                ${parsed.skipped.length > 8 ? `<p class="mt-2 text-[11px] text-amber-100/70">+${parsed.skipped.length - 8} alasan lainnya</p>` : ''}
+            </details>
+        ` : '';
+
+        preview.innerHTML = `
+            <div class="mb-2 text-white">Terdeteksi: <b>${escapeHTML(document.getElementById('bulk-title').value || parsed.title || 'Tanpa judul')}</b>${document.getElementById('bulk-year').value ? ` (${escapeHTML(document.getElementById('bulk-year').value)})` : ''} - ${bulkImportEpisodes.length} episode</div>
+            <ul>${list}</ul>
+            ${more}
+            ${skipped}
+        `;
+    }
+
+    function mergeEpisodeList(currentEpisodes, incomingEpisodes) {
+        const merged = new Map();
+        (currentEpisodes || []).forEach(episode => {
+            if (episode?.epsName) merged.set(String(episode.epsName).toLowerCase(), episode);
+        });
+        incomingEpisodes.forEach(episode => {
+            const { episodeNumber, ...cleanEpisode } = episode;
+            merged.set(cleanEpisode.epsName.toLowerCase(), cleanEpisode);
+        });
+        return [...merged.values()].sort((a, b) => {
+            const aNum = Number(String(a.epsName || '').match(/\d+/)?.[0] || 9999);
+            const bNum = Number(String(b.epsName || '').match(/\d+/)?.[0] || 9999);
+            return aNum - bNum;
+        });
+    }
+
+    async function importBulkEpisodes() {
+        if (!bulkImportEpisodes.length) renderBulkPreview();
+        if (!bulkImportEpisodes.length) {
+            showToast('Preview dulu data episode yang ingin diimport.', 'warning');
+            return;
+        }
+
+        const title = document.getElementById('bulk-title').value.trim();
+        if (!title) {
+            showToast('Judul belum terbaca. Isi judul di Upload Cepat dulu.', 'warning');
+            return;
+        }
+
+        const importBtn = document.getElementById('bulk-import-btn');
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengimport...';
+
+        const genreInput = document.getElementById('bulk-genre').value.trim();
+        const yearInput = document.getElementById('bulk-year').value.trim();
+        const synopsisInput = document.getElementById('bulk-synopsis').value.trim();
+        const imageInput = document.getElementById('bulk-image-url').value.trim();
+        const imageUrl = imageInput || DEFAULT_POSTER;
+
+        const { data: latestData } = await _supabase.from('drakor').select('*');
+        if (latestData) drakorDB = latestData;
+
+        const existingDrama = drakorDB.find(d => String(d.title || '').toLowerCase() === title.toLowerCase());
+        let error = null;
+
+        if (existingDrama) {
+            const episodes = mergeEpisodeList(existingDrama.episodes, bulkImportEpisodes);
+            ({ error } = await _supabase.from('drakor').update({
+                episodes,
+                image: imageInput ? imageUrl : existingDrama.image,
+                genre: genreInput || existingDrama.genre || 'Drama',
+                year: yearInput || existingDrama.year || '2026',
+                synopsis: synopsisInput || existingDrama.synopsis || 'Tidak ada deskripsi.'
+            }).eq('id', existingDrama.id));
+        } else {
+            ({ error } = await _supabase.from('drakor').insert([{
+                title,
+                image: imageUrl,
+                genre: genreInput || 'Drama',
+                year: yearInput || '2026',
+                synopsis: synopsisInput || 'Tidak ada deskripsi.',
+                episodes: mergeEpisodeList([], bulkImportEpisodes)
+            }]));
+        }
+
+        importBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Import';
+        importBtn.disabled = false;
+
+        if (error) {
+            showToast('Import episode gagal.', 'error');
+            return;
+        }
+
+        showToast(`${bulkImportEpisodes.length} episode berhasil diimport.`, 'success');
+        document.getElementById('bulk-manager-input').value = '';
+        document.getElementById('bulk-preview').classList.add('hidden');
+        document.getElementById('bulk-title').value = '';
+        document.getElementById('bulk-year').value = '';
+        document.getElementById('bulk-image-url').value = '';
+        document.getElementById('bulk-synopsis').value = '';
+        setSelectedGenres('bulk-genre', 'bulk-genre-options', 'bulk-genre-summary', '', { silent: true });
+        bulkImportEpisodes = [];
+        await fetchCloudData();
+    }
+
+    document.getElementById('bulk-preview-btn').addEventListener('click', renderBulkPreview);
+    document.getElementById('bulk-import-btn').addEventListener('click', importBulkEpisodes);
+    document.getElementById('bulk-ocr-btn').addEventListener('click', readBulkScreenshot);
+    document.getElementById('bulk-screenshot-input').addEventListener('change', event => {
+        const file = event.target.files?.[0];
+        document.getElementById('bulk-ocr-btn').disabled = !file;
+        if (file) setOcrStatus(`Screenshot siap dibaca: ${file.name}`, 0);
+    });
 
     document.getElementById('upload-form').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -536,12 +1131,13 @@
     });
 
     function enterEditMode(id) {
+        setUploadMode('single');
         const drama = drakorDB.find(d => d.id == id);
         if (!drama) return;
         document.getElementById('edit-cloud-id').value = drama.id;
         document.getElementById('edit-episode-idx').value = "-1";
         document.getElementById('title').value = drama.title;
-        document.getElementById('genre').value = drama.genre || 'Romance';
+        setSelectedGenres('genre', 'genre-options', 'genre-summary', drama.genre || 'Romance', { silent: true });
         document.getElementById('year').value = drama.year || '2026';
         document.getElementById('image-url').value = drama.image || '';
         document.getElementById('synopsis').value = drama.synopsis || '';
@@ -559,13 +1155,14 @@
     }
 
     function enterEditEpisodeMode(dIdx, eIdx) {
+        setUploadMode('single');
         const drama = drakorDB[dIdx];
         if (!drama || !drama.episodes[eIdx]) return;
         const eps = drama.episodes[eIdx];
         document.getElementById('edit-cloud-id').value = drama.id;
         document.getElementById('edit-episode-idx').value = eIdx;
         document.getElementById('title').value = drama.title;
-        document.getElementById('genre').value = drama.genre || 'Romance';
+        setSelectedGenres('genre', 'genre-options', 'genre-summary', drama.genre || 'Romance', { silent: true });
         document.getElementById('year').value = drama.year || '2026';
         document.getElementById('image-url').value = drama.image || '';
         document.getElementById('synopsis').value = drama.synopsis || '';
@@ -586,6 +1183,7 @@
         document.getElementById('upload-form').reset();
         document.getElementById('edit-cloud-id').value = '';
         document.getElementById('edit-episode-idx').value = '-1';
+        setSelectedGenres('genre', 'genre-options', 'genre-summary', 'Drama', { silent: true });
         document.getElementById('form-mode-title').innerText = "Injeksi Basis Data Cloud";
         document.getElementById('form-mode-desc').innerText = "Sinkronisasi instan menggunakan klaster Supabase DB.";
         document.getElementById('submit-btn-text').innerText = "Suntikkan Data Ke Supabase Cloud";
@@ -644,8 +1242,16 @@
             const dIdx = drakorDB.findIndex(d => d.id == drama.id);
             const block = document.createElement('div');
             block.className = 'manager-card';
+            const dramaTitle = escapeHTML(drama.title || 'Tanpa Judul');
+            const dramaGenre = escapeHTML(drama.genre || 'K-Drama');
+            const dramaYear = escapeHTML(drama.year || '2026');
+            const dramaIdArg = escapeHTML(JSON.stringify(String(drama.id)));
+            const dramaTitleArg = escapeHTML(JSON.stringify(String(drama.title || 'Tanpa Judul')));
+            drama = { ...drama, title: dramaTitle, genre: dramaGenre, year: dramaYear };
             let subRowsHtml = '';
             (drama.episodes || []).forEach((eps, eIdx) => {
+                const epsName = escapeHTML(eps.epsName || `Episode ${eIdx + 1}`);
+                const epsUrl = escapeHTML(eps.videoUrl || 'URL belum diisi');
                 let badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-400">Belum Dicek</span>`;
                 if (eps.linkStatus === 'Active') badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20"><i class="fa-solid fa-circle-check mr-1"></i>Active</span>`;
                 if (eps.linkStatus === 'Broken') badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Broken</span>`;
@@ -653,8 +1259,8 @@
                 subRowsHtml += `
                     <div class="flex items-center justify-between p-3 bg-dark-surface/40 rounded-xl border border-dark-border/40 text-xs gap-4">
                         <div class="flex-1 min-w-0">
-                            <span class="font-bold text-white block">${eps.epsName}</span>
-                            <span class="text-dark-muted truncate block max-w-md mt-0.5">${eps.videoUrl}</span>
+                            <span class="font-bold text-white block">${epsName}</span>
+                            <span class="text-dark-muted truncate block max-w-md mt-0.5">${epsUrl}</span>
                         </div>
                         <div class="flex items-center gap-3 shrink-0">
                             ${badge}
@@ -670,8 +1276,8 @@
                         <p class="text-[11px] text-brand font-medium mt-0.5"><i class="fa-solid fa-layer-group"></i> ${(drama.episodes || []).length} Episode Tersemat ${getBrokenCount(drama) ? `<span class="text-red-400 ml-2"><i class="fa-solid fa-triangle-exclamation"></i> ${getBrokenCount(drama)} Broken</span>` : ''}</p>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <button onclick="event.stopPropagation(); enterEditMode('${drama.id}')" class="bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-600/20 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
-                        <button onclick="deleteEntireDrama(event, '${drama.id}', '${drama.title.replace(/'/g, "\\'")}')" class="bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/20 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"><i class="fa-solid fa-trash"></i> Hapus</button>
+                        <button onclick="event.stopPropagation(); enterEditMode(${dramaIdArg})" class="bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-600/20 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                        <button onclick="deleteEntireDrama(event, ${dramaIdArg}, ${dramaTitleArg})" class="bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/20 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"><i class="fa-solid fa-trash"></i> Hapus</button>
                         <i class="fa-solid fa-chevron-down text-dark-muted text-xs ml-1"></i>
                     </div>
                 </div>

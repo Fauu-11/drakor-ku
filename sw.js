@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kstream-static-v10';
+const CACHE_NAME = 'kstream-static-v16';
 const APP_SHELL = [
   './',
   './index.html',
