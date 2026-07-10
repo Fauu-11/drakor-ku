@@ -8,12 +8,13 @@
   <title>Player | K STREAM</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shaka-player@5.1.13/dist/controls.css">
   <link rel="stylesheet" href="./css/app.css">
 </head>
 <body class="p-3 md:p-6 lg:p-8">
@@ -46,7 +47,7 @@
             </div>
           </div>
           <div id="video-wrapper" class="h-full w-full">
-            <video id="video-player" class="h-full w-full" playsinline controls preload="metadata"></video>
+            <video id="video-player" class="h-full w-full" playsinline preload="metadata"></video>
           </div>
           <div id="embed-wrapper" class="hidden h-full w-full">
             <iframe id="embed-player" class="h-full w-full" title="K-STREAM embedded player" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
@@ -125,10 +126,10 @@
     </aside>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
-  <script src="./js/config.js"></script>
-  <script src="./js/common.js"></script>
-  <script src="./js/player.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/shaka-player@5.1.13/dist/shaka-player.ui.js"></script>
+  <script defer src="./js/config.js"></script>
+  <script defer src="./js/common.js"></script>
+  <script defer src="./js/player.js"></script>
 </body>
 </html>
