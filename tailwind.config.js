@@ -15,7 +15,7 @@ module.exports = {
           bg: '#020205',
           surface: '#0d0d14',
           border: '#1f1f2e',
-          muted: '#64748b'
+          muted: '#94a3b8'
         }
       }
     }

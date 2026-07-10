@@ -18,9 +18,10 @@
   </head>
   <body class="antialiased pt-20" id="app-body">
     <a href="#main-content" class="skip-link">Lewati ke konten utama</a>
-    <div id="toast-container"></div>
+    <div id="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
     <nav id="bottom-nav" aria-label="Navigasi bawah">
       <button
+        type="button"
         class="bottom-nav-btn"
         id="bnav-search"
         onclick="switchView('search')"
@@ -29,6 +30,7 @@
         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>Cari
       </button>
       <button
+        type="button"
         class="bottom-nav-btn"
         id="bnav-history"
         onclick="switchView('history')"
@@ -37,6 +39,7 @@
         <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>History
       </button>
       <button
+        type="button"
         class="bottom-nav-btn"
         id="bnav-watchlist"
         onclick="switchView('watchlist')"
@@ -66,8 +69,9 @@
           </a>
           <div class="flex items-center gap-3 md:hidden">
             <button
+              type="button"
               onclick="toggleMobileSearch()"
-              class="text-dark-muted hover:text-white p-2 text-lg"
+              class="text-dark-muted hover:text-white w-11 h-11 flex items-center justify-center text-lg"
               aria-label="Buka pencarian mobile"
             >
               <i
@@ -137,16 +141,18 @@
         ></p>
         <div class="flex items-center gap-3">
           <button
+            type="button"
             id="hero-play-btn"
             onclick="heroPlay()"
-            class="inline-flex items-center gap-2 bg-brand hover:bg-brand-hover text-white text-xs md:text-sm font-semibold px-5 py-3 rounded-xl transition-all shadow-lg"
+            class="min-h-11 inline-flex items-center gap-2 bg-brand hover:bg-brand-hover text-white text-xs md:text-sm font-semibold px-5 py-3 rounded-xl transition-all shadow-lg"
           >
             <i class="fa-solid fa-play" aria-hidden="true"></i> Putar Sekarang
           </button>
           <button
+            type="button"
             id="hero-info-btn"
             onclick="heroInfo()"
-            class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs md:text-sm font-semibold px-5 py-3 rounded-xl transition-all border border-white/10"
+            class="min-h-11 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs md:text-sm font-semibold px-5 py-3 rounded-xl transition-all border border-white/10"
           >
             <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Detail
           </button>
@@ -154,6 +160,7 @@
         <div
           class="flex items-center gap-2 mt-4"
           id="hero-dots"
+          role="group"
           aria-label="Navigasi banner"
         ></div>
       </div>
@@ -191,18 +198,19 @@
             >
               Drama Title — Episode
             </h4>
-            <div class="eps-progress-bar w-48 mt-1">
-              <div
-                class="eps-progress-fill"
-                id="continue-progress"
-                style="width: 0%"
-              ></div>
-            </div>
+            <progress
+              class="continue-progress w-48 mt-1"
+              id="continue-progress"
+              max="100"
+              value="0"
+              aria-label="Progress tontonan terakhir"
+            ></progress>
           </div>
         </div>
         <button
+          type="button"
           id="continue-btn"
-          class="w-full sm:w-auto bg-white hover:bg-neutral-200 text-black font-bold text-xs px-4 py-2 rounded-xl transition-all"
+          class="min-h-11 w-full sm:w-auto bg-white hover:bg-neutral-200 text-black font-bold text-xs px-4 py-2 rounded-xl transition-all"
         >
           Putar Sekarang
         </button>
@@ -224,6 +232,7 @@
           </div>
           <span
             id="catalog-count"
+            aria-live="polite"
             class="text-xs text-dark-muted font-medium"
           ></span>
         </div>
@@ -290,7 +299,7 @@
             <div class="flex items-center gap-2">
               <button
                 onclick="switchView('home')"
-                class="md:hidden text-[11px] font-bold text-neutral-300 bg-white/5 border border-white/10 px-3 py-2 rounded-xl hover:bg-white/10 transition-all"
+                class="min-h-11 md:hidden text-[11px] font-bold text-neutral-300 bg-white/5 border border-white/10 px-3 py-2 rounded-xl hover:bg-white/10 transition-all"
                 type="button"
               >
                 <i class="fa-solid fa-arrow-left mr-1" aria-hidden="true"></i>
@@ -298,7 +307,7 @@
               </button>
               <button
                 onclick="clearWatchHistory()"
-                class="text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                class="min-h-11 text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all"
                 type="button"
               >
                 <i class="fa-solid fa-trash mr-1" aria-hidden="true"></i> Hapus
@@ -309,6 +318,7 @@
         </div>
         <div id="history-container" class="history-text-list"></div>
       </section>
+      </div>
       </div>
     </main>
     <div
@@ -334,7 +344,7 @@
         />
         <button
           onclick="switchView('home')"
-          class="absolute inset-y-0 right-3 flex items-center text-dark-muted"
+          class="absolute inset-y-0 right-1 w-11 flex items-center justify-center text-dark-muted"
           aria-label="Tutup pencarian"
           type="button"
         >
@@ -362,7 +372,7 @@
           ></div>
           <img
             id="detail-banner"
-            src=""
+            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
             class="w-full h-full object-cover opacity-50 object-top"
             alt="Banner detail"
             width="1200"
@@ -375,7 +385,7 @@
           <button
             onclick="closeDetailPage()"
             aria-label="Kembali dari halaman detail"
-            class="absolute top-4 left-4 w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white text-sm z-20"
+            class="absolute top-4 left-4 w-11 h-11 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white text-sm z-20"
             type="button"
           >
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
@@ -403,7 +413,7 @@
           <h2
             id="detail-title"
             class="text-2xl md:text-4xl font-extrabold text-white tracking-tight mb-1"
-          ></h2>
+          >Memuat detail...</h2>
           <p
             id="detail-genre"
             class="text-[11px] text-brand font-bold mb-3"
@@ -471,7 +481,7 @@
         ></div>
         <img
           id="modal-banner"
-          src=""
+          src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
           class="w-full h-full object-cover opacity-60 object-top"
           alt="Banner preview"
           width="900"
@@ -484,7 +494,7 @@
         <button
           onclick="closePreviewModal()"
           aria-label="Tutup preview"
-          class="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white text-sm z-20"
+          class="absolute top-3 right-3 w-11 h-11 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white text-sm z-20"
           type="button"
         >
           <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -512,7 +522,7 @@
         <h3
           id="modal-title"
           class="text-xl md:text-3xl font-extrabold text-white tracking-tight mb-1.5"
-        ></h3>
+        >Memuat preview...</h3>
         <p
           id="modal-genre-display"
           class="text-[11px] text-brand font-bold mb-2.5"
@@ -525,7 +535,7 @@
           <button
             id="modal-play-btn"
             onclick="playFromModal()"
-            class="flex-1 text-xs font-bold bg-brand text-white py-2.5 px-4 rounded-xl"
+            class="min-h-11 flex-1 text-xs font-bold bg-brand text-white py-2.5 px-4 rounded-xl"
             type="button"
           >
             <i class="fa-solid fa-play mr-1" aria-hidden="true"></i> Putar
@@ -533,7 +543,7 @@
           <button
             id="modal-detail-btn"
             onclick="openDetailFromModal()"
-            class="flex-1 text-xs font-semibold bg-brand/10 border border-brand/20 text-brand py-2.5 px-4 rounded-xl"
+            class="min-h-11 flex-1 text-xs font-semibold bg-brand/10 border border-brand/20 text-brand py-2.5 px-4 rounded-xl"
             type="button"
           >
             <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
