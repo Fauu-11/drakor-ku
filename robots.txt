@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+
+Sitemap: https://fauu-11.github.io/drakor-ku/sitemap.xml

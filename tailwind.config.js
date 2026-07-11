@@ -1,9 +1,9 @@
 module.exports = {
-  content: ['./index.html', './js/index.js'],
+  content: ['./index.html', './player.html', './js/index.js', './js/player.js', './js/common.js'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif']
+        sans: ['system-ui', '-apple-system', '"Segoe UI"', 'sans-serif']
       },
       colors: {
         brand: {
