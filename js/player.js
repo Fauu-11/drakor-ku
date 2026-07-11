@@ -42,10 +42,11 @@
 
   let drama = null;
   let episodeIndex = requestedEpisode;
-  let shakaPlayer = null;
-  let shakaUi = null;
   let communityCloudReady = true;
   let lastPositionWrite = 0;
+  let ratingsLoaded = false;
+  let commentsLoadSeq = 0;
+  let embedFallbackTimer = null;
 
   function setLoading(active) {
     elements.loading.classList.toggle('hidden', !active);
@@ -64,6 +65,57 @@
   function setCommunityMode(cloud, detail = '') {
     communityCloudReady = cloud;
     setConnectionBadge(elements.communityBadge, cloud ? 'online' : 'local', detail || (cloud ? 'Komunitas cloud' : 'Komunitas lokal'));
+  }
+
+  function runWhenIdle(callback, timeout = 900) {
+    if ('requestIdleCallback' in window) requestIdleCallback(callback, { timeout });
+    else setTimeout(callback, Math.min(timeout, 900));
+  }
+
+  function setMediaMessage(title, detail, type = 'info') {
+    elements.videoWrapper.classList.add('hidden');
+    elements.embedWrapper.classList.add('hidden');
+    elements.empty.classList.remove('hidden');
+    elements.empty.classList.add('flex');
+    elements.empty.querySelector('h2').textContent = title;
+    elements.empty.querySelector('p').textContent = detail;
+    setLoading(false);
+    if (type !== 'info') showToast(title, type);
+  }
+
+  function setMeta(name, content, property = false) {
+    if (!content) return;
+    const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`;
+    let tag = document.head.querySelector(selector);
+    if (!tag) {
+      tag = document.createElement('meta');
+      tag.setAttribute(property ? 'property' : 'name', name);
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute('content', content);
+  }
+
+  function updateSeoMetadata() {
+    const episode = drama.episodes[episodeIndex];
+    const episodeName = episode?.epsName || `Episode ${episodeIndex + 1}`;
+    const title = `${drama.title} - ${episodeName} | K STREAM`;
+    const description = `${drama.title} ${episodeName}. ${drama.synopsis || 'Tonton episode pilihan di K STREAM.'}`.replace(/\s+/g, ' ').slice(0, 155);
+    let image = drama.image || config.defaultPoster;
+    try {
+      image = new URL(image, location.href).href;
+    } catch {
+      image = new URL(config.defaultPoster, location.href).href;
+    }
+
+    document.title = title;
+    setMeta('description', description);
+    setMeta('og:title', title, true);
+    setMeta('og:description', description, true);
+    setMeta('og:image', image, true);
+    setMeta('og:url', location.href, true);
+    setMeta('twitter:title', title);
+    setMeta('twitter:description', description);
+    setMeta('twitter:image', image);
   }
 
   function episodePositionKey() {
@@ -122,27 +174,11 @@
   }
 
   async function resetMediaSource() {
+    clearTimeout(embedFallbackTimer);
     elements.video.pause();
-    if (shakaPlayer) {
-      try {
-        await shakaPlayer.unload();
-      } catch (error) {
-        console.warn('Shaka unload gagal:', error);
-      }
-    }
     elements.video.removeAttribute('src');
     elements.video.removeAttribute('poster');
     elements.video.load();
-  }
-
-  function isAdaptiveStream(url) {
-    return /\.(?:mpd|m3u8)(?:$|[?#])/i.test(url);
-  }
-
-  function handleShakaError(event) {
-    const error = event?.detail || event;
-    console.error('Shaka Player error:', error);
-    setLoading(false);
   }
 
   function youtubeEmbed(url) {
@@ -163,12 +199,7 @@
     elements.video.poster = drama.image || config.defaultPoster;
 
     if (!url) {
-      elements.videoWrapper.classList.add('hidden');
-      elements.empty.classList.remove('hidden');
-      elements.empty.classList.add('flex');
-      elements.empty.querySelector('h2').textContent = 'Sumber video belum tersedia';
-      elements.empty.querySelector('p').textContent = 'Tambahkan URL video melalui panel admin.';
-      setLoading(false);
+      setMediaMessage('URL episode kosong', 'Tambahkan URL video melalui panel admin.', 'warning');
       return;
     }
 
@@ -176,28 +207,26 @@
       if (/abyssplayer/i.test(url)) {
         elements.videoWrapper.classList.add('hidden');
         elements.embedWrapper.classList.remove('hidden');
-        elements.embed.onload = () => setLoading(false);
+        elements.embed.onload = () => {
+          clearTimeout(embedFallbackTimer);
+          setLoading(false);
+        };
+        elements.embed.onerror = () => setMediaMessage('Embed gagal dimuat', 'Server embed tidak merespons. Coba muat ulang atau periksa URL episode.', 'error');
         elements.embed.src = url;
-        setTimeout(() => setLoading(false), 3500);
+        embedFallbackTimer = setTimeout(() => {
+          setMediaMessage('Embed gagal dimuat', 'Server embed terlalu lama merespons. Coba muat ulang atau periksa URL episode.', 'warning');
+        }, 10000);
       } else if (/\/embed\/|kisskh/i.test(url)) {
-        elements.videoWrapper.classList.add('hidden');
-        elements.embedWrapper.classList.add('hidden');
-        elements.empty.classList.remove('hidden');
-        elements.empty.classList.add('flex');
-        elements.empty.querySelector('h2').textContent = 'Sumber video tidak didukung';
-        elements.empty.querySelector('p').textContent = 'Gunakan URL MP4, HLS, DASH, atau YouTube agar pemutar tetap aman dan stabil.';
-        setLoading(false);
+        setMediaMessage('Format stream tidak didukung', 'Gunakan URL MP4, Abyssplayer, atau YouTube agar pemutar tetap aman dan stabil.', 'warning');
       } else if (/youtu\.be|youtube\.com/i.test(url)) {
         elements.videoWrapper.classList.add('hidden');
         elements.embedWrapper.classList.remove('hidden');
+        elements.embed.onload = () => setLoading(false);
+        elements.embed.onerror = () => setMediaMessage('Embed gagal dimuat', 'YouTube embed tidak merespons. Periksa URL episode.', 'error');
         elements.embed.src = youtubeEmbed(url);
-        setLoading(false);
-      } else if (isAdaptiveStream(url)) {
-        if (!shakaPlayer) {
-          throw new Error('Shaka Player tidak tersedia pada browser ini');
-        }
-        await shakaPlayer.load(url);
-        elements.video.play().catch(() => {});
+        embedFallbackTimer = setTimeout(() => setLoading(false), 5000);
+      } else if (/\.(?:mpd|m3u8)(?:$|[?#])/i.test(url)) {
+        setMediaMessage('Format stream tidak didukung', 'HLS/DASH dinonaktifkan agar player tetap ringan. Pakai MP4, Abyssplayer, atau YouTube.', 'warning');
       } else {
         elements.video.src = url;
         elements.video.load();
@@ -205,9 +234,8 @@
       }
     } catch (error) {
       console.error(error);
-      setLoading(false);
       const code = error?.code ? ` (kode ${error.code})` : '';
-      showToast(`Sumber video gagal dimuat${code}.`, 'error');
+      setMediaMessage('Sumber video gagal dimuat', `Periksa URL episode${code}.`, 'error');
     }
   }
 
@@ -217,7 +245,7 @@
     elements.episodeLabel.textContent = episode?.epsName || `Episode ${episodeIndex + 1}`;
     elements.meta.textContent = `${parseGenres(drama.genre).join(' \u2022 ')} \u2022 ${drama.year || '-'}`;
     elements.synopsis.textContent = drama.synopsis || 'Sinopsis belum tersedia.';
-    document.title = `${drama.title} \u2014 ${elements.episodeLabel.textContent} | K STREAM`;
+    updateSeoMetadata();
     elements.nextButton.classList.toggle('hidden', !drama.episodes[episodeIndex + 1]);
     elements.nextButton.onclick = () => selectEpisode(episodeIndex + 1);
   }
@@ -250,6 +278,7 @@
     addHistory();
     renderHistory();
     await loadMedia();
+    loadCommunityLater({ commentsOnly: true });
   }
 
   function addHistory() {
@@ -407,6 +436,7 @@
   }
 
   async function loadComments() {
+    const seq = ++commentsLoadSeq;
     const local = safeJsonGet(localCommentKey(), []);
     const { data, error } = await supabase
       .from('drakor_comments')
@@ -417,13 +447,26 @@
       .limit(50);
 
     if (error) {
+      if (seq !== commentsLoadSeq) return;
       setCommunityMode(false, isMissingTable(error) ? 'SQL komunitas belum dipasang' : 'Komentar lokal');
       renderComments(local);
       return;
     }
 
+    if (seq !== commentsLoadSeq) return;
     setCommunityMode(true);
     renderComments([...(data || []), ...local].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+  }
+
+  function loadCommunityLater({ commentsOnly = false } = {}) {
+    runWhenIdle(async () => {
+      const tasks = [loadComments()];
+      if (!commentsOnly && !ratingsLoaded) {
+        ratingsLoaded = true;
+        tasks.push(loadRatings());
+      }
+      await Promise.allSettled(tasks);
+    }, 1200);
   }
 
   async function submitComment(event) {
@@ -491,50 +534,12 @@
     }
 
     setConnectionBadge(elements.connectionBadge, 'loading');
-    if (window.shaka) {
-      shaka.polyfill.installAll();
-      if (shaka.Player.isBrowserSupported() && shaka.ui?.Overlay) {
-        shakaPlayer = new shaka.Player();
-        await shakaPlayer.attach(elements.video);
-        shakaPlayer.configure({
-          abr: { enabled: true },
-          streaming: {
-            bufferingGoal: 24,
-            rebufferingGoal: 2,
-            bufferBehind: 20
-          }
-        });
-        shakaPlayer.addEventListener('error', handleShakaError);
-
-        shakaUi = new shaka.ui.Overlay(
-          shakaPlayer,
-          elements.videoWrapper,
-          elements.video
-        );
-        shakaUi.configure({
-          addSeekBar: true,
-          enableTooltips: true,
-          bigButtons: ['play_pause'],
-          playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
-          controlPanelElements: [
-            'play_pause', 'rewind', 'fast_forward', 'time_and_duration',
-            'spacer', 'mute', 'volume', 'overflow_menu', 'fullscreen'
-          ],
-          overflowMenuButtons: [
-            'quality', 'captions', 'language', 'playback_rate',
-            'picture_in_picture'
-          ]
-        });
-      }
-    }
-    if (!shakaPlayer) {
-      elements.video.controls = true;
-      console.warn('Shaka Player tidak tersedia; MP4 memakai kontrol native.');
-    }
+    elements.video.controls = true;
 
     elements.video.addEventListener('waiting', () => setLoading(true));
     elements.video.addEventListener('playing', () => setLoading(false));
     elements.video.addEventListener('canplay', () => setLoading(false));
+    elements.video.addEventListener('error', () => setMediaMessage('Sumber video gagal dimuat', 'Browser tidak dapat memutar URL video ini. Periksa format dan izin akses file.', 'error'));
     elements.video.addEventListener('loadedmetadata', restorePosition);
     elements.video.addEventListener('timeupdate', savePositionThrottled);
     elements.video.addEventListener('ended', () => {
@@ -557,6 +562,7 @@
     if (!drama) {
       setConnectionBadge(elements.connectionBadge, connection.ok ? 'offline' : 'local', connection.ok ? 'Judul tidak ditemukan' : 'Data lokal');
       setLoading(false);
+      setMediaMessage(connection.ok ? 'Judul tidak ditemukan' : 'Koneksi Supabase gagal, memakai data lokal', remoteError?.message || 'Data judul tidak ditemukan di katalog lokal maupun cloud.', 'warning');
       showToast(remoteError?.message || 'Judul tidak ditemukan.', 'error');
       return;
     }
@@ -570,7 +576,7 @@
     addHistory();
     renderHistory();
     await loadMedia();
-    await Promise.allSettled([loadRatings(), loadComments()]);
+    loadCommunityLater();
   }
 
   elements.ratingStars.addEventListener('click', event => {

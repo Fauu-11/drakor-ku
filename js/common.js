@@ -213,7 +213,34 @@
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(error => {
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+
+      navigator.serviceWorker.register('./sw.js').then(registration => {
+        const updateButton = document.getElementById('app-update-button');
+        const showUpdate = worker => {
+          if (!worker) return;
+          if (updateButton) {
+            updateButton.classList.remove('hidden');
+            updateButton.onclick = () => worker.postMessage({ type: 'SKIP_WAITING' });
+          } else {
+            showToast('Update tersedia. Muat ulang halaman untuk versi terbaru.', 'info', 5000);
+          }
+        };
+
+        if (registration.waiting) showUpdate(registration.waiting);
+        registration.addEventListener('updatefound', () => {
+          const worker = registration.installing;
+          if (!worker) return;
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) showUpdate(worker);
+          });
+        });
+      }).catch(error => {
         console.warn('Service worker gagal didaftarkan:', error);
       });
     });
