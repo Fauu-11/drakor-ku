@@ -5,24 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Player K-STREAM dengan episode, rating komunitas, komentar, dan riwayat tontonan.">
   <meta name="theme-color" content="#020205">
-  <meta property="og:type" content="video.other">
-  <meta property="og:site_name" content="K STREAM">
-  <meta property="og:title" content="Player | K STREAM">
-  <meta property="og:description" content="Tonton episode pilihan di K STREAM.">
-  <meta property="og:image" content="./icons/icon.svg">
-  <meta name="twitter:card" content="summary_large_image">
   <title>Player | K STREAM</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" href="./css/player.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#ff2a74',
+              hover: '#e11d62',
+              glow: 'rgba(255, 42, 116, 0.4)'
+            },
+            dark: {
+              bg: '#020205',
+              surface: '#0d0d14',
+              border: '#1f1f2e',
+              muted: '#94a3b8'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="./css/app.css">
 </head>
 <body class="p-3 md:p-6 lg:p-8">
   <div id="toast-container" role="status" aria-live="polite" aria-atomic="false" class="fixed bottom-6 right-4 z-[100] flex max-w-[calc(100vw-2rem)] flex-col gap-2"></div>
-  <button id="app-update-button" type="button" class="fixed bottom-6 left-4 z-[101] hidden rounded-xl border border-pink-500/30 bg-pink-600 px-4 py-3 text-xs font-bold text-white shadow-2xl">
-    Update tersedia, muat ulang
-  </button>
 
   <header class="glass mx-auto mb-6 flex max-w-[1500px] items-center justify-between gap-3 rounded-2xl border border-white/10 px-4 py-3">
     <a href="./index.html" class="flex items-center gap-2 text-lg font-black tracking-wider">

@@ -1,14 +1,11 @@
-const CACHE_NAME = 'kstream-static-v19';
+const CACHE_NAME = 'kstream-static-v18';
 const APP_SHELL = [
   './',
   './index.html',
   './player.html',
   './admin.html',
   './manifest.json',
-  './sitemap.xml',
-  './robots.txt',
   './css/index.css',
-  './css/player.css',
   './css/app.css',
   './js/config.js',
   './js/index.min.js',
@@ -19,6 +16,7 @@ const APP_SHELL = [
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
@@ -30,44 +28,23 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-self.addEventListener('message', event => {
-  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
-});
-
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin || url.hostname.endsWith('supabase.co')) return;
+  if (url.origin !== self.location.origin) return;
 
-  if (event.request.mode === 'navigate') {
-    event.respondWith(networkFirst(event.request, './index.html'));
-    return;
-  }
-
-  event.respondWith(staleWhileRevalidate(event.request));
-});
-
-async function networkFirst(request, fallbackUrl) {
-  const cache = await caches.open(CACHE_NAME);
-  try {
-    const response = await fetch(request);
-    if (response.ok) cache.put(request, response.clone());
-    return response;
-  } catch {
-    return (await cache.match(request)) || cache.match(fallbackUrl);
-  }
-}
-
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then(response => {
-      if (response.ok) cache.put(request, response.clone());
-      return response;
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        return response;
+      }).catch(() => {
+        if (event.request.mode === 'navigate') return caches.match('./index.html');
+        return undefined;
+      });
     })
-    .catch(() => cached);
-
-  return cached || network;
-}
+  );
+});
