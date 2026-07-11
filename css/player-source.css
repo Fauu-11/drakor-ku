@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Lightweight local icon subset for the player page. */
+.fa-solid {
+  display: inline-block;
+  min-width: 1em;
+  font-style: normal;
+  font-weight: inherit;
+  line-height: 1;
+  text-align: center;
+  speak: never;
+}
+.fa-solid::before { display: inline-block; }
+.fa-play::before { content: "\25b6"; }
+.fa-expand::before { content: "\26f6"; }
+.fa-compress::before { content: "\2922"; }
+.fa-film::before { content: "\25a3"; }
+.fa-share-nodes::before { content: "\2934"; }
+.fa-forward-step::before { content: "\23ed"; }
+.fa-star::before { content: "\2605"; }
+.fa-paper-plane::before { content: "\27a4"; }
+.fa-list-ol::before { content: "\2630"; }
+.fa-clock-rotate-left::before { content: "\21ba"; }
+.fa-circle::before { content: "\25cf"; }
+.fa-circle-notch::before { content: "\25cc"; }
+.fa-triangle-exclamation::before { content: "\26a0"; }
+.fa-hard-drive::before { content: "\25a4"; }
+.fa-spin { animation: fa-spin 1s linear infinite; }
+@keyframes fa-spin { to { transform: rotate(360deg); } }
