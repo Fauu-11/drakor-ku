@@ -591,10 +591,10 @@
 
     function updateEpisodeWarning() {
         const title = document.getElementById('title').value.trim().toLowerCase();
-        const epsName = document.getElementById('episode').value.trim().toLowerCase();
+        const epsName = normalizeEpisodeLabel(document.getElementById('episode').value).toLowerCase();
         const warning = document.getElementById('episode-warning');
         const drama = drakorDB.find(d => d.title.toLowerCase() === title);
-        const duplicate = drama && epsName && (drama.episodes || []).some(eps => eps.epsName.toLowerCase() === epsName);
+        const duplicate = drama && epsName && (drama.episodes || []).some(eps => normalizeEpisodeLabel(eps.epsName).toLowerCase() === epsName);
         if (duplicate && document.getElementById('edit-episode-idx').value === '-1') {
             warning.textContent = 'Episode dengan nama ini sudah ada. Submit akan memperbarui URL episode tersebut.';
             warning.classList.remove('hidden');
@@ -615,6 +615,11 @@
             updateEpisodeWarning();
             saveAdminDraft();
         });
+    });
+    document.getElementById('episode').addEventListener('blur', event => {
+        event.target.value = normalizeEpisodeLabel(event.target.value);
+        updateEpisodeWarning();
+        saveAdminDraft();
     });
     document.getElementById('bulk-image-url').addEventListener('input', updateBulkPosterPreview);
     document.getElementById('bulk-image-url').addEventListener('change', updateBulkPosterPreview);
@@ -676,6 +681,31 @@
             .replace(/[Oo]/g, '0')
             .replace(/[Il]/g, '1');
         return Number.parseInt(normalized, 10);
+    }
+
+    function normalizeEpisodeLabel(value) {
+        const label = String(value || '').trim();
+        if (!label) return '';
+
+        const match = label.match(/^(?:(?:episode|eps?|e)\s*)?0*(\d{1,4})(?:\s*[-_:]?\s*(.*))?$/i);
+        if (!match) return label;
+
+        const episodeNumber = Number.parseInt(match[1], 10);
+        if (!Number.isFinite(episodeNumber)) return label;
+
+        const suffix = String(match[2] || '')
+            .replace(/^[-_:]+|[-_:]+$/g, '')
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const numberLabel = String(episodeNumber).padStart(2, '0');
+        return `Episode ${numberLabel}${suffix ? ` ${suffix}` : ''}`;
+    }
+
+    function getEpisodeSortNumber(value) {
+        const normalized = normalizeEpisodeLabel(value);
+        const match = normalized.match(/^Episode\s+(\d+)/i);
+        return match ? Number.parseInt(match[1], 10) : Number.POSITIVE_INFINITY;
     }
 
     function extractFilenameParts(line) {
@@ -801,7 +831,6 @@
         if (pendingWithoutSlug.length) {
             const looseSlugs = collectLooseAbyssSlugs(rawText, usedSlugs);
             pendingWithoutSlug
-                .sort((a, b) => a.episodeNumber - b.episodeNumber)
                 .forEach((parts, index) => {
                     const slug = looseSlugs[index];
                     if (!slug) {
@@ -1000,22 +1029,27 @@
     function mergeEpisodeList(currentEpisodes, incomingEpisodes) {
         const merged = new Map();
         (currentEpisodes || []).forEach(episode => {
-            if (episode?.epsName) merged.set(String(episode.epsName).toLowerCase(), episode);
+            if (!episode?.epsName) return;
+            const normalizedEpisode = { ...episode, epsName: normalizeEpisodeLabel(episode.epsName) };
+            merged.set(normalizedEpisode.epsName.toLowerCase(), normalizedEpisode);
         });
         incomingEpisodes.forEach(episode => {
             const { episodeNumber, ...cleanEpisode } = episode;
+            cleanEpisode.epsName = normalizeEpisodeLabel(cleanEpisode.epsName);
             merged.set(cleanEpisode.epsName.toLowerCase(), cleanEpisode);
         });
         return [...merged.values()].sort((a, b) => {
-            const aNum = Number(String(a.epsName || '').match(/\d+/)?.[0] || 9999);
-            const bNum = Number(String(b.epsName || '').match(/\d+/)?.[0] || 9999);
-            return aNum - bNum;
+            const aNumber = getEpisodeSortNumber(a.epsName);
+            const bNumber = getEpisodeSortNumber(b.epsName);
+            if (aNumber !== bNumber) return aNumber - bNumber;
+            return String(a.epsName || '').localeCompare(String(b.epsName || ''), 'id', { numeric: true });
         });
     }
 
     async function importBulkEpisodes() {
         setImportStatus('Menyiapkan data episode...', 5);
-        if (!bulkImportEpisodes.length) renderBulkPreview();
+        // Selalu baca ulang textarea agar data yang diimport sama dengan preview terbaru.
+        renderBulkPreview();
         if (!bulkImportEpisodes.length) {
             setImportStatus('Import dibatalkan: tidak ada episode yang terbaca.', 0, 'error');
             showToast('Preview dulu data episode yang ingin diimport.', 'warning');
@@ -1040,63 +1074,76 @@
         const imageInput = document.getElementById('bulk-image-url').value.trim();
         const imageUrl = imageInput || DEFAULT_POSTER;
 
-        setImportStatus('Mengambil data terbaru dari Supabase...', 30);
-        const { data: latestData } = await _supabase.from('drakor').select('*');
-        if (latestData) drakorDB = latestData;
+        try {
+            if (!_supabase) throw new Error('Koneksi Supabase belum siap. Muat ulang halaman admin.');
 
-        const existingDrama = drakorDB.find(d => String(d.title || '').toLowerCase() === title.toLowerCase());
-        let error = null;
+            setImportStatus('Mengambil data terbaru dari Supabase...', 30);
+            const { data: latestData, error: fetchError } = await _supabase.from('drakor').select('*');
+            if (fetchError) throw fetchError;
+            drakorDB = latestData || [];
 
-        if (existingDrama) {
-            setImportStatus('Menggabungkan episode dengan judul yang sudah ada...', 50);
-            const episodes = mergeEpisodeList(existingDrama.episodes, bulkImportEpisodes);
-            setImportStatus(`Menyimpan ${episodes.length} episode ke Supabase...`, 70);
-            ({ error } = await _supabase.from('drakor').update({
-                episodes,
-                image: imageInput ? imageUrl : existingDrama.image,
-                genre: genreInput || existingDrama.genre || 'Drama',
-                year: yearInput || existingDrama.year || '2026',
-                synopsis: synopsisInput || existingDrama.synopsis || 'Tidak ada deskripsi.'
-            }).eq('id', existingDrama.id));
-        } else {
-            setImportStatus('Membuat judul baru di Supabase...', 50);
-            ({ error } = await _supabase.from('drakor').insert([{
-                title,
-                image: imageUrl,
-                genre: genreInput || 'Drama',
-                year: yearInput || '2026',
-                synopsis: synopsisInput || 'Tidak ada deskripsi.',
-                episodes: mergeEpisodeList([], bulkImportEpisodes)
-            }]));
+            const existingDrama = drakorDB.find(d => String(d.title || '').trim().toLowerCase() === title.toLowerCase());
+            let saveError = null;
+
+            if (existingDrama) {
+                setImportStatus('Menggabungkan episode dengan judul yang sudah ada...', 50);
+                const episodes = mergeEpisodeList(existingDrama.episodes, bulkImportEpisodes);
+                setImportStatus(`Menyimpan ${episodes.length} episode ke Supabase...`, 70);
+                ({ error: saveError } = await _supabase.from('drakor').update({
+                    episodes,
+                    image: imageInput ? imageUrl : existingDrama.image,
+                    genre: genreInput || existingDrama.genre || 'Drama',
+                    year: yearInput || existingDrama.year || '2026',
+                    synopsis: synopsisInput || existingDrama.synopsis || 'Tidak ada deskripsi.'
+                }).eq('id', existingDrama.id));
+            } else {
+                setImportStatus('Membuat judul baru di Supabase...', 50);
+                ({ error: saveError } = await _supabase.from('drakor').insert([{
+                    title,
+                    image: imageUrl,
+                    genre: genreInput || 'Drama',
+                    year: yearInput || '2026',
+                    synopsis: synopsisInput || 'Tidak ada deskripsi.',
+                    episodes: mergeEpisodeList([], bulkImportEpisodes)
+                }]));
+            }
+
+            if (saveError) throw saveError;
+
+            const importedCount = bulkImportEpisodes.length;
+            setImportStatus('Merefresh daftar admin...', 90);
+            await fetchCloudData();
+
+            document.getElementById('bulk-manager-input').value = '';
+            document.getElementById('bulk-preview').classList.add('hidden');
+            document.getElementById('bulk-title').value = '';
+            document.getElementById('bulk-year').value = '';
+            document.getElementById('bulk-image-url').value = '';
+            updateBulkPosterPreview();
+            document.getElementById('bulk-synopsis').value = '';
+            setSelectedGenres('bulk-genre', 'bulk-genre-options', 'bulk-genre-summary', '', { silent: true });
+            bulkImportEpisodes = [];
+            importBtn.disabled = true;
+            setImportStatus('Import selesai. Data admin sudah diperbarui.', 100, 'success');
+            showToast(`${importedCount} episode berhasil diimport.`, 'success');
+        } catch (error) {
+            console.error('Upload Fast gagal:', error);
+            setImportStatus(`Import gagal: ${error?.message || 'Terjadi gangguan saat menyimpan data.'}`, 0, 'error');
+            showToast('Import episode gagal. Data belum diubah.', 'error');
+            importBtn.disabled = false;
+        } finally {
+            importBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Import Semua';
         }
-
-        importBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Import Semua';
-        importBtn.disabled = false;
-
-        if (error) {
-            setImportStatus(`Import gagal: ${error.message || 'Supabase menolak data.'}`, 0, 'error');
-            showToast('Import episode gagal.', 'error');
-            return;
-        }
-
-        setImportStatus('Merefresh daftar admin...', 90);
-        showToast(`${bulkImportEpisodes.length} episode berhasil diimport.`, 'success');
-        document.getElementById('bulk-manager-input').value = '';
-        document.getElementById('bulk-preview').classList.add('hidden');
-        document.getElementById('bulk-title').value = '';
-        document.getElementById('bulk-year').value = '';
-        document.getElementById('bulk-image-url').value = '';
-        updateBulkPosterPreview();
-        document.getElementById('bulk-synopsis').value = '';
-        setSelectedGenres('bulk-genre', 'bulk-genre-options', 'bulk-genre-summary', '', { silent: true });
-        bulkImportEpisodes = [];
-        await fetchCloudData();
-        setImportStatus('Import selesai. Data admin sudah diperbarui.', 100, 'success');
     }
 
     document.getElementById('bulk-preview-btn').addEventListener('click', renderBulkPreview);
     document.getElementById('bulk-import-btn').addEventListener('click', importBulkEpisodes);
     document.getElementById('bulk-ocr-btn').addEventListener('click', readBulkScreenshot);
+    document.getElementById('bulk-manager-input').addEventListener('input', () => {
+        bulkImportEpisodes = [];
+        document.getElementById('bulk-import-btn').disabled = true;
+        document.getElementById('bulk-preview').classList.add('hidden');
+    });
     document.getElementById('bulk-screenshot-input').addEventListener('change', event => {
         const file = event.target.files?.[0];
         document.getElementById('bulk-ocr-btn').disabled = !file;
@@ -1113,7 +1160,7 @@
         const idTarget = document.getElementById('edit-cloud-id').value;
         const episodeIdx = parseInt(document.getElementById('edit-episode-idx').value);
         const title = document.getElementById('title').value.trim();
-        const epsName = document.getElementById('episode').value.trim();
+        const epsName = normalizeEpisodeLabel(document.getElementById('episode').value);
         const genre = document.getElementById('genre').value;
         const year = document.getElementById('year').value || '2026';
         const synopsis = document.getElementById('synopsis').value.trim() || 'Tidak ada deskripsi.';
@@ -1138,6 +1185,7 @@
                     else updatedEpisodes.push({ epsName, videoUrl, linkStatus: 'Unchecked' });
                 }
             }
+            updatedEpisodes = mergeEpisodeList(updatedEpisodes, []);
             const { error } = await _supabase.from('drakor').update({ title, genre, year, synopsis, image: imageUrl, episodes: updatedEpisodes }).eq('id', idTarget);
             if (error) showToast('Gagal memperbarui data', 'error');
             else showToast('Data berhasil diperbarui!', 'success');
@@ -1151,6 +1199,7 @@
                 let ex = updatedEpisodes.find(e => e.epsName.toLowerCase() === epsName.toLowerCase());
                 if (ex) ex.videoUrl = videoUrl;
                 else updatedEpisodes.push({ epsName, videoUrl, linkStatus: 'Unchecked' });
+                updatedEpisodes = mergeEpisodeList(updatedEpisodes, []);
                 
                 const { error } = await _supabase.from('drakor').update({ episodes: updatedEpisodes, image: document.getElementById('image-url').value.trim() ? imageUrl : existingDrama.image, genre, year, synopsis }).eq('id', existingDrama.id);
                 if (error) showToast('Gagal menambah episode', 'error');
